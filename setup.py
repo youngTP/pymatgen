@@ -5,6 +5,9 @@ from io import open
 import sys
 
 from setuptools import setup, find_packages, Extension
+from distutils.core import setup
+from Cython.Build import cythonize
+
 
 try:
     from numpy.distutils.misc_util import get_numpy_include_dirs
@@ -39,6 +42,10 @@ def get_spglib_ext():
         include_dirs=include_dirs + get_numpy_include_dirs(),
         sources=[os.path.join(spglibdir, "_spglib.c")] + sources,
         extra_compile_args=c_opt)
+
+
+def get_pyx_ext():
+    return cythonize("pymatgen/core/pbc.pyx")
 
 
 with open("README.rst") as f:
@@ -104,6 +111,7 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Software Development :: Libraries :: Python Modules"
     ],
-    ext_modules=[get_spglib_ext()],
+    ext_modules=[get_spglib_ext()] + get_pyx_ext(),
+    include_dirs=get_numpy_include_dirs(),
     scripts=glob.glob(os.path.join(SETUP_PTH, "scripts", "*"))
 )

@@ -377,8 +377,6 @@ class Lattice(PMGSONable):
         A lattice is considered to be equal to another if the internal matrix
         representation satisfies np.allclose(matrix1, matrix2) to be True.
         """
-        if other is None:
-            return False
         return np.allclose(self.matrix, other.matrix)
 
     def __ne__(self, other):
