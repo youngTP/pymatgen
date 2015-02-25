@@ -16,6 +16,7 @@ import logging
 import warnings
 
 import numpy as np
+from numpy.linalg import norm
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, fcluster
 
@@ -27,9 +28,11 @@ from pymatgen.core.lattice import Lattice
 from pymatgen.core.sites import PeriodicSite
 
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from pymatgen.util.coord_utils import in_coord_list
+from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list_pbc, \
+    in_coord_list_pbc
 from pymatgen.analysis.structure_matcher import StructureMatcher
 
+<<<<<<< master
 """
 This module implements representations of slabs and surfaces, as well as
 algorithms for generating them.
@@ -43,6 +46,8 @@ __email__ = "ongsp@ucsd.edu"
 __date__ = "6/10/14"
 
 
+=======
+>>>>>>> HEAD~70
 logger = logging.getLogger(__name__)
 
 
@@ -482,6 +487,9 @@ class SlabGenerator(object):
 
         self.oriented_unit_cell = Structure.from_sites(single,
                                                        to_unit_cell=True)
+        self.oriented_unit_cell.to(filename="LCO_111_before.cif")
+        if primitive:
+            self.oriented_unit_cell = _get_constrained_prim(single)
         self.parent = initial_structure
         self.lll_reduce = lll_reduce
         self.center_slab = center_slab
@@ -882,3 +890,4 @@ def reduce_vector(vector):
     vector = tuple([int(i / d) for i in vector])
 
     return vector
+
