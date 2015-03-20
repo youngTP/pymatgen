@@ -813,9 +813,14 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
 
 
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
+<<<<<<< master
                        bonds=None, tol=1e-3, max_broken_bonds=0,
                        lll_reduce=False, center_slab=False, primitive=True,
                        max_normal_search=None, symmetrize=False):
+=======
+                       bonds=None, tol=0.1, max_broken_bonds=0,
+                       lll_reduce=False, center_slab=False, primitive=True):
+>>>>>>> HEAD~69
     """
     A function that finds all different slabs up to a certain miller index.
     Slabs oriented under certain Miller indices that are equivalent to other
@@ -890,4 +895,3 @@ def reduce_vector(vector):
     vector = tuple([int(i / d) for i in vector])
 
     return vector
-
