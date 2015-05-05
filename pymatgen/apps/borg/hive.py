@@ -120,8 +120,10 @@ class VaspToComputedEntryDrone(AbstractDrone):
         if "relax1" in files and "relax2" in files:
             filepath = glob.glob(os.path.join(path, "relax2",
                                               "vasprun.xml*"))[0]
+            incarfilepath = os.path.join(path, "relax1", 'INCAR' + "*")
         else:
             vasprun_files = glob.glob(os.path.join(path, "vasprun.xml*"))
+            incarfilepath = glob.glob(os.path.join(path,"INCAR*"))[0]
             filepath = None
             if len(vasprun_files) == 1:
                 filepath = vasprun_files[0]
@@ -154,6 +156,11 @@ class VaspToComputedEntryDrone(AbstractDrone):
         entry = vasprun.get_computed_entry(self._inc_structure,
                                            parameters=self._parameters,
                                            data=self._data)
+
+        incar = Incar.from_file(incarfilepath)
+        entry.data['NUPDOWN'] = incar['NUPDOWN']
+
+
         entry.parameters["history"] = _get_transformation_history(path)
         return entry
 
@@ -271,7 +278,7 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
             initial_vol = poscar.structure.volume
             final_vol = contcar.structure.volume
             delta_volume = (final_vol / initial_vol - 1)
-            data = {"filename": path, "delta_volume": delta_volume}
+            data = {"filename": path, "delta_volume": delta_volume,"NUPDOWN":incar['NUPDOWN']}
             if self._inc_structure:
                 entry = ComputedStructureEntry(structure, energy,
                                                parameters=param,

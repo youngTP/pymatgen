@@ -147,6 +147,18 @@ class SpecieProximityFilter(AbstractStructureFilter):
                               {str(sp): v
                               for sp, v in self.specie_and_min_dist.items()}}}
 
+class TwoSpecieProximityFilter(AbstractStructureFilter):
+    '''
+    This filter removes structures that have two species that are too close to each other
+
+    Args:
+        Multi_species_and_min_dist_dict: Two species string to float mapping. For
+        example, ['Na+','O2-',1] means that all Na+ ions must be at least 1 Angstrom away
+        from O2- ions. Note that the testing is done based on the actual object. If
+        you have a structure with Element, you must use ['Na','O',1]
+    '''
+
+
 
 class RemoveDuplicatesFilter(AbstractStructureFilter):
     """
