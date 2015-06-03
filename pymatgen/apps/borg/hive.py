@@ -114,6 +114,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
         if parameters:
             self._parameters.update(parameters)
         self._data = data if data else []
+        logging.debug('self data is: {}'.format(self._data))
 
     def assimilate(self, path):
         files = os.listdir(path)
@@ -158,6 +159,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
                                            data=self._data)
 
         incar = Incar.from_file(incarfilepath)
+        logging.debug('Incar file is: {}'.format(incar))
         entry.data['NUPDOWN'] = incar['NUPDOWN']
 
 
