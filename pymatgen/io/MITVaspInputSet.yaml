@@ -116,12 +116,12 @@ INCAR:
     Cr: 5
     Fe: 5
     Fe2+: 4
-    Fe3+: 5
-    Fe4+: 4
+    Fe3+: 7.5
+    Fe4+: 6
     Mn: 5
     Mn2+: 5
-    Mn3+: 4
-    Mn4+: 3
+    Mn3+: 6
+    Mn4+: 4.5
     Mo: 5
     Ni: 2
     Ni3+: 1
