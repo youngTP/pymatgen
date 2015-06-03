@@ -120,6 +120,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
         if any("relax1" in s for s in files) and any("relax2" in s for s in files):
             filepath = glob.glob(os.path.join(path, "relax2",
                                               "vasprun.xml*"))[0]
+            logging.debug('filepath is:{}'.format(filepath))
             incarfilepath = os.path.join(path, "relax1", 'INCAR' + "*")
         else:
             vasprun_files = glob.glob(os.path.join(path, "vasprun.xml*"))
