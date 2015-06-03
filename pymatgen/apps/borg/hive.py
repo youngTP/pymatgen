@@ -219,7 +219,7 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
         logging.debug('files type is {}'.format(type(files)))
         try:
             files_to_parse = {}
-            if "relax1" in files and "relax2" in files:
+            if any("relax1" in s for s in files) and any("relax2" in s for s in files):
                 for filename in ("INCAR", "POTCAR", "POSCAR"):
                     search_str = os.path.join(path, "relax1", filename + "*")
                     files_to_parse[filename] = glob.glob(search_str)[0]
