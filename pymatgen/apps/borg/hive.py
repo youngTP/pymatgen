@@ -222,10 +222,12 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
             files_to_parse = {}
             if any("relax1" in s for s in files) and any("relax2" in s for s in files):
                 for filename in ("INCAR", "POTCAR", "POSCAR"):
-                    search_str = os.path.join(path, filename+".relax1" + "*")
+                    search_str = os.path.join(path, filename +".relax1" + "*")
+                    logging.debug('search str:{}'.format(search_str))
                     files_to_parse[filename] = glob.glob(search_str)[0]
                 for filename in ("CONTCAR", "OSZICAR"):
                     search_str = os.path.join(path,  filename +".relax2"+ "*")
+                    logging.debug('search str:{}'.format(search_str))
                     files_to_parse[filename] = glob.glob(search_str)[-1]
             else:
                 logging.debug('no relax file in files')
