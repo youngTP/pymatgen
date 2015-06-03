@@ -216,6 +216,7 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
                             "run_type"}
 
     def assimilate(self, path):
+        logging.debug('Using simple drone')
         files = os.listdir(path)
         try:
             files_to_parse = {}
