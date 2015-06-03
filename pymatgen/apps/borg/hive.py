@@ -114,7 +114,6 @@ class VaspToComputedEntryDrone(AbstractDrone):
         if parameters:
             self._parameters.update(parameters)
         self._data = data if data else []
-        logging.debug('self data is: {}'.format(self._data))
 
     def assimilate(self, path):
         files = os.listdir(path)
@@ -147,6 +146,8 @@ class VaspToComputedEntryDrone(AbstractDrone):
                         filepath = fname
                         break
                     filepath = fname
+
+        logging.debug('self data is: {}'.format(self._data))
 
         try:
             vasprun = Vasprun(filepath)
