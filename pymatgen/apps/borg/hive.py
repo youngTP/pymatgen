@@ -122,7 +122,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
             filepath = glob.glob(os.path.join(path,
                                               "vasprun.xml.relax2*"))[0]
             logging.debug('filepath is {}'.format(filepath))
-            incarfilepath = os.path.join(path,'INCAR.relax1*')
+            incarfilepath = glob.glob(os.path.join(path,'INCAR.relax1*'))
         else:
             vasprun_files = glob.glob(os.path.join(path, "vasprun.xml*"))
             incarfilepath = glob.glob(os.path.join(path,"INCAR*"))[0]
