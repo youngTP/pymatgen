@@ -117,6 +117,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
 
     def assimilate(self, path):
         files = os.listdir(path)
+        logging.debug('path is: {}'.format(path))
         if any("relax1" in s for s in files) and any("relax2" in s for s in files):
             # filepath = glob.glob(os.path.join(path, "relax2",
             #                                   "vasprun.xml*"))[0]
