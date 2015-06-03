@@ -123,7 +123,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
             incarfilepath = os.path.join(path, "relax1", 'INCAR' + "*")
         else:
             vasprun_files = glob.glob(os.path.join(path, "vasprun.xml*"))
-            incarfilepath = glob.glob(os.path.join(path,"INCAR*"))[0]
+            # incarfilepath = glob.glob(os.path.join(path,"INCAR*"))[0]
             filepath = None
             if len(vasprun_files) == 1:
                 filepath = vasprun_files[0]
@@ -161,7 +161,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
 
         incar = Incar.from_file(incarfilepath)
         logging.debug('Incar file is: {}'.format(incar))
-        entry.data['NUPDOWN'] = incar['NUPDOWN']
+        # entry.data['NUPDOWN'] = incar['NUPDOWN']
 
 
         entry.parameters["history"] = _get_transformation_history(path)
@@ -302,7 +302,9 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
             if dynmat is not None:
                 data['phonon_frequencies'] = dynmat.get_phonon_frequencies()
 
+            logging.debug('Using Simple Vasp to entry drone')
             data = {"filename": path, "delta_volume": delta_volume,"NUPDOWN":incar['NUPDOWN']}
+
 
             if self._inc_structure:
                 entry = ComputedStructureEntry(
