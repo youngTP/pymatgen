@@ -147,7 +147,6 @@ class VaspToComputedEntryDrone(AbstractDrone):
                         break
                     filepath = fname
 
-        logging.debug('self data is: {}'.format(self._data))
 
         try:
             vasprun = Vasprun(filepath)
@@ -160,7 +159,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
                                            data=self._data)
 
         incar = Incar.from_file(incarfilepath)
-        logging.debug('Incar file is: {}'.format(incar))
+        logging.debug('Incar file is: {}'.format(incarfilepath))
         entry.data['NUPDOWN'] = incar['NUPDOWN']
 
 
@@ -302,7 +301,8 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
             if dynmat is not None:
                 data['phonon_frequencies'] = dynmat.get_phonon_frequencies()
 
-            logging.debug('Using Simple Vasp to entry drone')
+            # logging.debug('Using Simple Vasp to entry drone')
+            logging.debug('Incar file to parse: {}'.format(files_to_parse["INCAR"]))
             data = {"filename": path, "delta_volume": delta_volume,"NUPDOWN":incar['NUPDOWN']}
 
 
