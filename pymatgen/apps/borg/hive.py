@@ -217,16 +217,14 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
 
     def assimilate(self, path):
         files = os.listdir(path)
-        logging.debug('files is {}'.format(files))
-        logging.debug('files type is {}'.format(type(files)))
         try:
             files_to_parse = {}
             if any("relax1" in s for s in files) and any("relax2" in s for s in files):
                 for filename in ("INCAR", "POTCAR", "POSCAR"):
-                    search_str = os.path.join(path, filename+"relax1" + "*")
+                    search_str = os.path.join(path, filename+".relax1" + "*")
                     files_to_parse[filename] = glob.glob(search_str)[0]
                 for filename in ("CONTCAR", "OSZICAR"):
-                    search_str = os.path.join(path,  filename +"relax2"+ "*")
+                    search_str = os.path.join(path,  filename +".relax2"+ "*")
                     files_to_parse[filename] = glob.glob(search_str)[-1]
             else:
                 logging.debug('no relax file in files')
