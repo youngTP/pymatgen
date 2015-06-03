@@ -220,6 +220,7 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
         files = os.listdir(path)
         try:
             files_to_parse = {}
+            #Some problem for filename search wait to be debug
             if any("relax1" in s for s in files) and any("relax2" in s for s in files):
                 for filename in ("INCAR", "POSCAR"):
                     search_str = os.path.join(path, filename +".relax1" + "*")
