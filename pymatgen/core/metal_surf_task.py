@@ -249,5 +249,46 @@ class RunCustodianTask(FireTaskBase):
         return FWAction(stored_data=output)
 
 
+@explicit_serialize
+class VaspDBInsertTask(FireTaskBase):
 
+    required_params = ["host", "port", "user", "password", "database",
+                       "collection", "struct_type", "miller_index"]
+
+    def run_task(self, fw_spec):
+
+        dec = MontyDecoder()
+        miller_index = dec.process_decoded(self.get("miller_index"))
+        struct_type = dec.process_decoded(self.get("struct_type"))
+
+        if not self["host"]:
+            self["host"] = "127.0.0.1"
+
+        if not self["port"]:
+            self["port"] = 27017
+
+        if not self["database"]:
+            self["database"] = "vasp"
+
+        if not self["collection"]:
+            self["collection"] = "tasks"
+
+        try:
+            with open("FINAL_LOC") as f:
+                loc = f.read()
+        except IOError:
+            loc = "."
+
+        with open(pth.join("/projects/ong-group/repos/pymacy/resources/db/",
+                            "db.json")) as f:
+            d = json.load(f)
+            drone = VaspToDbTaskDrone(host=self["host"], port=self["port"],
+                                      user=self["user"], password=self["password"],
+                                      database=self["database"], collection=self["collection"],
+                                      mapi_key=d["mapi_key"],
+                                      additional_fields={"author": os.environ.get("USER"),
+                                                         "type": struct_type,
+                                                         "miller index": miller_index},
+                                      use_full_uri=False)
+            drone.assimilate(loc)
 
