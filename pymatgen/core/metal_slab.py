@@ -164,6 +164,8 @@ def get_input_mp(element, miller_index, api_key, min_slab_size=10, min_vacuum_si
 
     return oriented_u_cell, slab_cell
 
+
+
 def get_inputs_mp(element, max_index, api_key, min_slab_size=10,
                   min_vacuum_size=10, symprec=0.001, angle_tolerance=5):
     """
@@ -185,8 +187,8 @@ def get_inputs_mp(element, max_index, api_key, min_slab_size=10,
                                        primitive=False)
 
     oriented_u_cells = []
-    for slabs in list_of_slabs:
-        oriented_u_cells.append(slabs.oriented_unit_cell)
+    for slab in list_of_slabs:
+        oriented_u_cells.append(slab.oriented_unit_cell)
 
     return oriented_u_cell, list_of_slabs
 
