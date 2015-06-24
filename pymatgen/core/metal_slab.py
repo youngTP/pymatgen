@@ -167,7 +167,7 @@ def get_input_mp(element, miller_index, api_key, min_slab_size=10, min_vacuum_si
 
 
 def get_inputs_mp(element, max_index, api_key, min_slab_size=10,
-                  min_vacuum_size=10, symprec=0.001, angle_tolerance=5):
+                  min_vacuum_size=5, symprec=0.001, angle_tolerance=5):
     """
     element: str, element name of Metal
     miller_index: hkl, e.g. [1, 1, 0]
@@ -184,7 +184,7 @@ def get_inputs_mp(element, max_index, api_key, min_slab_size=10,
 
     list_of_slabs = generate_all_slabs(conv_unit_cell, max_index,
                                        min_slab_size, min_vacuum_size,
-                                       primitive=False)
+                                       primitive=False, max_normal_search=max_index)
 
     oriented_u_cells = []
     for slab in list_of_slabs:
