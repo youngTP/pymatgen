@@ -164,31 +164,3 @@ def get_input_mp(element, miller_index, api_key, min_slab_size=10, min_vacuum_si
 
     return oriented_u_cell, slab_cell
 
-
-
-def get_inputs_mp(element, max_index, api_key, min_slab_size=10,
-                  min_vacuum_size=5, symprec=0.001, angle_tolerance=5):
-    """
-    element: str, element name of Metal
-    miller_index: hkl, e.g. [1, 1, 0]
-    api_key: to get access to MP DB
-    """
-    # This initializes the REST adaptor. Put your own API key in.
-    # e.g. MPRester("QMt7nBdIioOVySW2")
-    mprest = MPRester(api_key)
-    #first is the lowest energy one
-    prim_unit_cell = mprest.get_structures(element)[0]
-    spa = SpacegroupAnalyzer(prim_unit_cell,  symprec=symprec,
-                             angle_tolerance=angle_tolerance)
-    conv_unit_cell = spa.get_conventional_standard_structure()
-
-    list_of_slabs = generate_all_slabs(conv_unit_cell, max_index,
-                                       min_slab_size, min_vacuum_size,
-                                       primitive=False, max_normal_search=max_index)
-
-    oriented_u_cells = []
-    for slab in list_of_slabs:
-        oriented_u_cells.append(slab.oriented_unit_cell)
-
-    return oriented_u_cell, list_of_slabs
-
