@@ -670,7 +670,12 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
 
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
                        bonds=None, tol=0.1, max_broken_bonds=0,
+<<<<<<< HEAD
                        lll_reduce=False, center_slab=False, primitive=True,
+=======
+                       lll_reduce=False,
+                       center_slab=False, primitive=True,
+>>>>>>> 1fa8fa295f8d4177eca7e9d68c9b1eac27c564f9
                        max_normal_search=None):
     """
     A function that finds all different slabs up to a certain miller index.
