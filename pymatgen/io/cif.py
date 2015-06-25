@@ -670,7 +670,16 @@ class CifWriter(object):
             to the SpacegroupAnalyzer
     """
 
-    def __init__(self, struct, symprec=None):
+#     def __init__(self, struct, symprec=None):
+    def __init__(self, struct, find_spacegroup=False, symprec=None):
+        """
+        Args:
+            struct (Structure): structure to write
+            find_spacegroup (bool): whether to try to determine the spacegroup
+            symprec (float): If not none, finds the symmetry of the structure
+                and writes the cif with symmetry information. Passes symprec
+                to the SpacegroupAnalyzer
+        """
         format_str = "{:.8f}"
 
         block = OrderedDict()

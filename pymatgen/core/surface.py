@@ -32,7 +32,6 @@ from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list_pbc, \
     in_coord_list_pbc
 from pymatgen.analysis.structure_matcher import StructureMatcher
 
-<<<<<<< master
 """
 This module implements representations of slabs and surfaces, as well as
 algorithms for generating them.
@@ -46,8 +45,6 @@ __email__ = "ongsp@ucsd.edu"
 __date__ = "6/10/14"
 
 
-=======
->>>>>>> HEAD~70
 logger = logging.getLogger(__name__)
 
 
