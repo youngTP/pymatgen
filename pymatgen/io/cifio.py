@@ -565,6 +565,7 @@ class CifWriter(object):
             to the SpacegroupAnalyzer
     """
 
+
     def __init__(self, struct, symprec=None):
 
         """
@@ -575,6 +576,7 @@ class CifWriter(object):
                 and writes the cif with symmetry information. Passes symprec
                 to the SpacegroupAnalyzer
         """
+
         format_str = "{:.8f}"
 
         block = OrderedDict()
