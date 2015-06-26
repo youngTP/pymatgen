@@ -670,8 +670,7 @@ class CifWriter(object):
             to the SpacegroupAnalyzer
     """
 
-#     def __init__(self, struct, symprec=None):
-    def __init__(self, struct, find_spacegroup=False, symprec=None):
+    def __init__(self, struct, symprec=None):
         """
         Args:
             struct (Structure): structure to write
