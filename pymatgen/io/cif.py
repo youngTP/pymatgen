@@ -336,13 +336,18 @@ class CifParser(object):
                 return getattr(Lattice, lattice_type)(*(lengths+angles))
 
         except KeyError:
+<<<<<<< master:pymatgen/io/cif.py
             # Missing Key search for cell setting
+=======
+            #Missing Key search for cell setting
+>>>>>>> HEAD~54:pymatgen/io/cifio.py
             for lattice_lable in ["_symmetry_cell_setting",
                                   "_space_group_crystal_system"]:
                 if data.data.get(lattice_lable):
                     lattice_type = data.data.get(lattice_lable).lower()
                     try:
 
+<<<<<<< master:pymatgen/io/cif.py
                         required_args = getargspec(
                             getattr(Lattice, lattice_type)).args
 
@@ -350,6 +355,16 @@ class CifParser(object):
                                    if l in required_args)
                         angles = (a for a in angle_strings
                                   if a in required_args)
+=======
+                        required_args = getargspec(getattr(Lattice,
+                                                               lattice_type)
+                                                        ).args
+
+                        lengths = (l for l in length_strings if l in
+                                                        required_args)
+                        angles = (a for a in angle_strings if a in
+                                                        required_args)
+>>>>>>> HEAD~54:pymatgen/io/cifio.py
                         return self.get_lattice(data, lengths, angles,
                                                 lattice_type=lattice_type)
                     except AttributeError as exc:
@@ -671,14 +686,6 @@ class CifWriter(object):
     """
 
     def __init__(self, struct, symprec=None):
-        """
-        Args:
-            struct (Structure): structure to write
-            find_spacegroup (bool): whether to try to determine the spacegroup
-            symprec (float): If not none, finds the symmetry of the structure
-                and writes the cif with symmetry information. Passes symprec
-                to the SpacegroupAnalyzer
-        """
         format_str = "{:.8f}"
 
         block = OrderedDict()
