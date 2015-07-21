@@ -40,8 +40,9 @@ class MPSlabVaspInputSet(DictVaspInputSet):
         DictVaspInputSet.__init__(self, "MaterialsProject Slab", vis["config_dict"],
                                   **kwargs)
         incar_settings_basic = {"NPAR": 4, "AMIN": 0.01, "AMIX": 0.2, "BMIX": 0.001,
-                                "EDIFF": 0.0005, "EDIFFG": -0.01, "ENCUT": 400,
-                                "ISMEAR": 1, "SIGMA": 0.05, "ISIF": 3}
+                                "EDIFF": 0.0005, "EDIFFG": -0.05, "ENCUT": 400,
+                                "ISMEAR": 1, "SIGMA": 0.05, "ISIF": 3,
+                                "MAGMOM": {'Fe': 7, 'Co': 7, 'Ni': 7}}
 
         if bulk:
              self.incar_settings.update(incar_settings_basic)
