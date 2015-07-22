@@ -39,7 +39,7 @@ class MPSlabVaspInputSet(DictVaspInputSet):
         vis = MPVaspInputSet(ediff_per_atom=False).as_dict()
         DictVaspInputSet.__init__(self, "MaterialsProject Slab", vis["config_dict"],
                                   **kwargs)
-        incar_settings_basic = {"NPAR": 4, "AMIN": 0.01, "AMIX": 0.2, "BMIX": 0.001,
+        incar_settings_basic = {"NPAR": 4,
                                 "EDIFF": 0.0005, "EDIFFG": -0.05, "ENCUT": 400,
                                 "ISMEAR": 1, "SIGMA": 0.05, "ISIF": 3,
                                 "MAGMOM": {'Fe': 7, 'Co': 7, 'Ni': 7}}
@@ -48,6 +48,10 @@ class MPSlabVaspInputSet(DictVaspInputSet):
              self.incar_settings.update(incar_settings_basic)
         else:
             incar_settings_basic["ISIF"] = 2
+            incar_settings_basic["AMIN"] = 0.01
+            incar_settings_basic["AMIX"] = 0.2
+            incar_settings_basic["BMIX"] = 0.001
+            incar_settings_basic["NELMIN"] = 8
             self.incar_settings.update(incar_settings_basic)
         self.user_incar_settings = user_incar_settings or {}
         if user_incar_settings:
