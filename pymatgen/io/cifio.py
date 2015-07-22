@@ -317,20 +317,28 @@ class CifParser(object):
                 return getattr(Lattice, lattice_type)(*(lengths+angles))
 
         except KeyError:
-            try:
-                sympos = data["_symmetry_equiv_pos_as_xyz_"]
-            except KeyError:
-                warnings.warn("No _symmetry_equiv_pos_as_xyz type key found. "
-                              "Defaulting to P1.")
-                sympos = ['x, y, z']
-        self.symmetry_operations = [SymmOp.from_xyz_string(s) for s in sympos]
-        print self.symmetry_operations
-        def parse_symbol(sym):
-            # capitalization conventions are not strictly followed, eg Cu will be CU
-            m = re.search("([A-Za-z]*)", sym)
-            if m:
-                return m.group(1)[:2].capitalize()
-            return ""
+            #Missing Key search for cell setting
+            for lattice_lable in ["_symmetry_cell_setting",
+                                  "_space_group_crystal_system"]:
+                if data.data.get(lattice_lable):
+                    lattice_type = data.data.get(lattice_lable).lower()
+                    try:
+
+                        required_args = getargspec(getattr(Lattice,
+                                                               lattice_type)
+                                                        ).args
+
+                        lengths = (l for l in length_strings if l in
+                                                        required_args)
+                        angles = (a for a in angle_strings if a in
+                                                        required_args)
+                        return self.get_lattice(data, lengths, angles,
+                                                lattice_type=lattice_type)
+                    except AttributeError as exc:
+                        warnings.warn(exc)
+
+                else:
+                    return None
 
     def get_symops(self, data):
         """
@@ -565,18 +573,7 @@ class CifWriter(object):
             to the SpacegroupAnalyzer
     """
 
-
     def __init__(self, struct, symprec=None):
-
-        """
-        Args:
-            struct (Structure): structure to write
-            find_spacegroup (bool): whether to try to determine the spacegroup
-            symprec (float): If not none, finds the symmetry of the structure
-                and writes the cif with symmetry information. Passes symprec
-                to the SpacegroupAnalyzer
-        """
-
         format_str = "{:.8f}"
 
         block = OrderedDict()
