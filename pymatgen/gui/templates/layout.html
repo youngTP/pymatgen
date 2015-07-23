@@ -1,0 +1,60 @@
+<html>
+<head>
+    <title>{% block title %}Welcome{% endblock %} | matgenie</title>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.1/jquery-ui.min.js"></script>
+    <script src="//cdn.datatables.net/1.10.3/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function () {
+
+            var sPath = window.location.pathname;
+            var sPage = sPath.substring(sPath.lastIndexOf('/') + 1);
+
+            if (sPage == "") {
+                $("#li-home").addClass("active");
+            }
+            else {
+                $("#li-" + sPage).addClass("active");
+            }
+
+        });
+    </script>
+    {%  block top_javascript %}
+    {%  endblock %}
+
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.png') }}"/>
+    <link rel=stylesheet type=text/css
+          href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.1/themes/smoothness/jquery-ui.css" />
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.3/css/jquery.dataTables.min.css"/>
+
+    {%  block css %}
+    {%  endblock %}
+
+</head>
+<body>
+
+<div id="navbar">
+    <div id="navbar-inner">
+        <div id="menu">
+            <ul>
+                <li id="li-home">
+                    <a href="/">home</a>
+                </li>
+                <li id="li-md">
+                    <a href="/func1">func1</a>
+                </li>
+                <li id="li-allocations">
+                    <a href="/func2">func2</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="content">
+{% block content %}
+{% endblock %}
+</div>
+</body>
+</html>
