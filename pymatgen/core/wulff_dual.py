@@ -249,6 +249,7 @@ class wulff_3d(object):
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
 
+
         plt.show()
         return plt
 
