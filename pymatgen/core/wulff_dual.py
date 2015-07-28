@@ -202,6 +202,7 @@ class wulff_3d(object):
         ax = fig.add_subplot(111, projection='3d')
         for pt in self.wulff_pt_list:
             ax.scatter(pt[0], pt[1], pt[2])
+        plt.gca().set_aspect('equal', adjustable='box')
 
         return plt
         #plt.show()
@@ -215,6 +216,8 @@ class wulff_3d(object):
             for line in plane[-1]:
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
+        plt.gca().set_aspect('equal', adjustable='box')
+
         return plt
         #plt.show()
 
@@ -249,7 +252,9 @@ class wulff_3d(object):
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
 
+        plt.gca().set_aspect('equal', adjustable='box')
 
-        plt.show()
+
+        plt.draw()
         return plt
 
