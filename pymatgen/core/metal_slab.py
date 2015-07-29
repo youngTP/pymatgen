@@ -155,7 +155,6 @@ def get_input_mp(element, miller_index, api_key, min_slab_size=10, min_vacuum_si
     api_key: to get access to MP DB
     """
     # This initializes the REST adaptor. Put your own API key in.
-    # e.g. MPRester("QMt7nBdIioOVySW2")
     mprest = MPRester(api_key)
     #first is the lowest energy one
     prim_unit_cell = mprest.get_structures(element)[0]
