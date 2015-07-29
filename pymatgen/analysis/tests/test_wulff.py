@@ -2,7 +2,7 @@ __author__ = 'vivid0036'
 
 from pymatgen import Structure, Lattice
 
-from pymatgen.core.wulff_dual import wulff_3d
+from pymatgen.analysis.wulff_dual import wulff_3d
 from pymatgen.io.smartio import CifParser
 
 mo = Structure(Lattice.cubic(3.16), ["Mo", "Mo"],
