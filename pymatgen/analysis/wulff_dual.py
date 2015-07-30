@@ -8,12 +8,14 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.core.operations import SymmOp
 from pymatgen.util.coord_utils import in_coord_list
 
+
 import math
 import itertools
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+# from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import array
 from pyhull.convex_hull import ConvexHull
 
 
@@ -253,6 +255,68 @@ class wulff_3d(object):
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
 
         plt.gca().set_aspect('equal', adjustable='box')
+
+
+        plt.draw()
+        return plt
+
+
+    def plot_wulff_color_3v(self):
+        fig = plt.figure()
+        #  top view
+        ax1 = fig.add_subplot(2,2,1, projection='3d', azim=0, elev=90)
+        ax2 = fig.add_subplot(2,2,2, projection='3d', azim=0, elev=90)
+        ax3 = fig.add_subplot(2,2,3, projection='3d', azim=0, elev=90)
+        ax4 = fig.add_subplot(2,2,4, projection='3d')
+        wulff_pt_list = self.wulff_pt_list
+        on_wulff = self.on_wulff
+
+        for plane in on_wulff:
+            plane_color = plane[-2]
+            print plane_color, plane[0]
+            for line in plane[-1]:
+                edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
+                ax1.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
+                ax2.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
+                ax3.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
+                ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
+
+            for vertices in plane[1]:
+                i = vertices[0]
+                j = vertices[1]
+                k = vertices[2]
+                pts_vertices = [wulff_pt_list[i], wulff_pt_list[j], wulff_pt_list[k]]
+                v1 = pts_vertices[1] - pts_vertices[0]
+                v2 = pts_vertices[2] - pts_vertices[0]
+
+                data_test = array([wulff_pt_list[i], wulff_pt_list[j], wulff_pt_list[k]])
+                Xs = data_test[:,0]
+                Ys = data_test[:,1]
+                Zs = data_test[:,2]
+                if abs(np.dot(np.cross(v1, v2),(0, 0, 1))) > 10e-10:
+                    print 'top'
+                    ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0)
+
+                # front view
+                if abs(np.dot(np.cross(v1, v2),(1, 0, 0))) > 10e-10:
+                    print 'front'
+                    ax2.plot_trisurf(Ys, Zs, Xs,  color=plane_color, linewidth=0)
+
+                # side view
+                if abs(np.dot(np.cross(v1, v2),(0, 1, 0))) > 10e-10:
+                    print 'side'
+                    ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0)
+
+        ax1.set_aspect('equal', adjustable='box')
+        ax1.set_title('top view')
+        ax2.set_aspect('equal', adjustable='box')
+        ax2.set_title('front view')
+        ax3.set_aspect('equal', adjustable='box')
+        ax3.set_title('side view')
+        ax4.set_aspect('equal', adjustable='box')
+        ax4.set_title('3d line view')
+
+
 
 
         plt.draw()

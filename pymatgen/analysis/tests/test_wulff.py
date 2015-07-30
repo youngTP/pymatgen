@@ -25,5 +25,5 @@ wulff_mo = wulff_3d(mo, miller_list, e_surf_list)
 plt1 = wulff_mo.plot_wulff_line()
 
 
-wulff_mo.plot_wulff_color()
+wulff_mo.plot_wulff_color_3v()
 plt1.show()
