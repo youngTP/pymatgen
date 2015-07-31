@@ -8,7 +8,7 @@ __date__ = "6/2/15"
 
 
 from pymatgen.io.vaspio_set import MPVaspInputSet, DictVaspInputSet
-from pymatgen.core.surface import Slab, SlabGenerator, generate_all_slabs
+from pymatgen.core.surface import SlabGenerator
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.matproj.rest import MPRester
 
@@ -39,10 +39,8 @@ class MPSlabVaspInputSet(DictVaspInputSet):
         vis = MPVaspInputSet(ediff_per_atom=False).as_dict()
         DictVaspInputSet.__init__(self, "MaterialsProject Slab", vis["config_dict"],
                                   **kwargs)
-        incar_settings_basic = {"NPAR": 4,
-                                "EDIFF": 0.0001, "EDIFFG": -0.05, "ENCUT": 400,
-                                "ISMEAR": 1, "SIGMA": 0.05, "ISIF": 3,
-                                "MAGMOM": {'Fe': 5, 'Co': 5, 'Ni': 5}}
+        incar_settings_basic = {"NPAR": 4, "EDIFF": 0.0001, "EDIFFG": -0.05,
+                                "ENCUT": 400, "ISMEAR": 1, "SIGMA": 0.05, "ISIF": 3}
 
         if bulk:
              self.incar_settings.update(incar_settings_basic)
