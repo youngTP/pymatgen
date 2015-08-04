@@ -1,7 +1,7 @@
 Change log
 ==========
 
-v3.1.1
+v3.1.5
 ------
-* Bug fixes for SpacegroupAnalyzer and SlabGenerator.
-* Much faster normal vec search.
+* Move vasp.vasp*put to vasp.*puts. Also, maintain backwards compatibility with 
+  vaspio.vasp_*put
