@@ -174,10 +174,10 @@ class Slab(Structure):
                 pretty good. Normalized dipole per unit area is used as it is
                 more reliable than using the total, which tends to be larger for
                 slabs with larger surface areas.
-        """
-        dip_per_unit_area = self.dipole / self.surface_area
         return np.linalg.norm(dip_per_unit_area) > tol_dipole_per_unit_area
 
+        """
+        dip_per_unit_area = self.dipole / self.surface_area
     @property
     def normal(self):
         """
