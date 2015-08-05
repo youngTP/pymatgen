@@ -237,6 +237,7 @@ class Slab(Structure):
 
         """
         dip_per_unit_area = self.dipole / self.surface_area
+        return np.linalg.norm(dip_per_unit_area) > tol_dipole_per_unit_area
     @property
     def normal(self):
         """
