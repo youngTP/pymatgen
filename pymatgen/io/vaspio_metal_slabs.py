@@ -39,7 +39,7 @@ class MPSlabVaspInputSet(DictVaspInputSet):
         vis = MPVaspInputSet(ediff_per_atom=False).as_dict()
         DictVaspInputSet.__init__(self, "MaterialsProject Slab", vis["config_dict"],
                                   **kwargs)
-        incar_settings_basic = {"NPAR": 4, "EDIFF": 1e-6, "EDIFFG": -0.05,
+        incar_settings_basic = {"NPAR": 4, "EDIFF": 1e-6, "EDIFFG": -0.01,
                                 "ENCUT": 400, "ISMEAR": 0, "SIGMA": 0.05, "ISIF": 3}
 
         if bulk:
