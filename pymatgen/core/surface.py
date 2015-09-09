@@ -336,7 +336,9 @@ class SlabGenerator(object):
                 primitive cell (this does **not** mean the slab is generated
                 from a primitive cell, it simply means that after slab
                 generation, we attempt to find shorter lattice vectors,
-                which lead to less surface area and smaller cells).
+                which lead to less surface area and smaller cells). If the
+                numbers of sites and species in the slab must be an integer
+                multiple of the oriented unit cell, set this parameter to False.
             max_normal_search (int): If set to a positive integer, the code will
                 conduct a search for a normal lattice vector that is as
                 perpendicular to the surface as possible by considering
