@@ -734,7 +734,7 @@ class Kpoints(PMGSONable):
     KPOINT reader/writer.
     """
     supported_modes = Enum(("Gamma", "Monkhorst", "Automatic", "Line_mode",
-                            "Cartesian", "Reciprocal"))
+                            "Cartesian", "Reciprocal","Mueller"))
 
     def __init__(self, comment="Default gamma", num_kpts=0,
                  style=supported_modes.Gamma,
@@ -1002,7 +1002,39 @@ class Kpoints(PMGSONable):
                        kpts=kpoints,
                        labels=labels,
                        num_kpts=int(divisions))
+    @staticmethod
+    def mueller(structure,min_distance=50.0,include_gamma=False):
+        """
+        Makes a k-point mesh from unpublished algorithm of Mueller et al.
+        Current implementation acquires k-point mesh from remote
+        server courtesy of Mueller group.  Eventual implementation should
+        include the algorithm, since server requires unwieldy file IO.
+        Note that the minimum distance must be an int, otherwise the server 
+        will complain about the PRECALC FILE
 
+        Args:
+            min_distance (float): minimum distance required by algorithm
+
+        Returns:
+            Kpoints object
+        """
+        f = open("PRECALC","w")
+        f.write("".join(["MINDISTANCE=",
+                         str(int(min_distance)),
+                         "\n"
+                         "INCLUDEGAMMA=",
+                         str(include_gamma).upper()]))
+        f.close()
+        g = open("POSCAR","w")
+        g.write(Poscar(structure).get_string())
+        g.close()
+        import requests
+        r = requests.post("http://muellergroup.jhu.edu:8080/PreCalcServer/PreCalcServlet",
+                        files = [("fileupload",open("PRECALC")),
+                                 ("fileupload",open("POSCAR"))])
+        print r.text
+        return Kpoints.from_string(r.text)
+    
     @staticmethod
     def from_file(filename):
         """

@@ -388,7 +388,13 @@ class DictVaspInputSet(AbstractVaspInputSet):
         # If length is in the kpoints_settings use Kpoints.automatic
         elif self.kpoints_settings.get('length'):
             return Kpoints.automatic(self.kpoints_settings['length'])
-
+        
+        # If mueller_min_distance is in the kpoints_settings use Kpoints.mueller
+        elif self.kpoints_settings.get('mueller_min_distance'):
+            return Kpoints.mueller(structure,
+                                   self.kpoints_settings['mueller_min_distance'],
+                                   self.force_gamma)
+        
         # Raise error. Unsure of which kpoint generation to use
         else:
             raise ValueError(
