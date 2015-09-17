@@ -1,9 +1,9 @@
 Change log
 ==========
 
-v3.1.6
+v3.2.0
 ------
-* Rudimentary PWSCF output reading.
-* Fix ASE support.
-* Support for WAVEDERF and reading multiple dielectricfunctions in vasprun.xml. 
-  (Miguel Dias Costa)
+* Force conversion to an actual list in selective dynamics and velocities in
+  Poscar.
+* fix small bug in BSPlotter (wrong ylim)
+* Elastic tensor parsing in Outcar
