@@ -687,6 +687,14 @@ MPHSEVaspInputSet = partial(DictVaspInputSet.from_file, "MP HSE",
 Same as the MPVaspInput set, but with HSE parameters.
 """
 
+MPMuellerVaspInputSet = partial(DictVaspInputSet.from_file, "MP Mueller",
+                                os.path.join(MODULE_DIR, "MPVaspInputSet.yaml"),
+                                kpoints_settings={'mueller_min_distance':50.0})
+"""
+Same as the MPVaspInput set, but using Mueller k-poing parameters.
+"""
+
+
 
 class MPStaticVaspInputSet(DictVaspInputSet):
     """
