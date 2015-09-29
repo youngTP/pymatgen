@@ -678,6 +678,103 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
                 unique_millers.append(miller)
     return unique_millers
 
+class GetMillerIndices(object):
+
+    def __init__(self, structure, max_index):
+
+        """
+        A class for obtaining a family of indices or
+            unique indices up to a certain max index.
+
+        Args:
+            structure (Structure): input structure.
+            max_index (int): The maximum index. For example, a max_index of 1
+                means that (100), (110), and (111) are returned for the cubic
+                structure. All other indices are equivalent to one of these.
+        """
+
+        recp_lattice = structure.lattice.reciprocal_lattice_crystallographic
+        # Need to make sure recp lattice is big enough, otherwise symmetry
+        # determination will fail. We set the overall volume to 1.
+        recp_lattice = recp_lattice.scale(1)
+        recp = Structure(recp_lattice, ["H"], [[0, 0, 0]])
+
+        analyzer = SpacegroupAnalyzer(recp, symprec=0.001)
+        symm_ops = analyzer.get_symmetry_operations()
+
+        self.structure = structure
+        self.max_index = max_index
+        self.symm_ops = symm_ops
+
+    def is_already_analyzed(self, miller_index, unique_millers=[]):
+
+        """
+        Creates a function that uses the symmetry operations in the
+        structure to find Miller indices that might give repetitive orientations
+
+        Args:
+            miller_index (tuple): Algorithm will find indices
+                equivalent to this index.
+            unique_millers (list): Algorithm will check if the
+                miller_index is equivalent to any indices in this list.
+        """
+
+        for op in self.symm_ops:
+            if in_coord_list(unique_millers, op.operate(miller_index)):
+                return True
+        return False
+
+    def get_symmetrically_distinct_miller_indices(self):
+
+        """
+        Returns all symmetrically distinct indices below a certain max-index for
+        a given structure. Analysis is based on the symmetry of the reciprocal
+        lattice of the structure.
+        """
+
+
+        unique_millers = []
+
+        r = list(range(-self.max_index, self.max_index + 1))
+        r.reverse()
+        for miller in itertools.product(r, r, r):
+            if any([i != 0 for i in miller]):
+                d = abs(reduce(gcd, miller))
+                miller = tuple([int(i / d) for i in miller])
+                if not self.is_already_analyzed(miller, unique_millers):
+                    unique_millers.append(miller)
+        return unique_millers
+
+    def get_symmetrically_equivalent_miller_indices(self, miller_index):
+        """
+        Returns all symmetrically equivalent indices below a certain max-index for
+        a given structure. Analysis is based on the symmetry of the reciprocal
+        lattice of the structure.
+
+        Args:
+            structure (Structure): input structure.
+            miller_index (tuple): Designates the family of Miller indices to find.
+        """
+
+        equivalent_millers = [miller_index]
+        r = list(range(-self.max_index, self.max_index + 1))
+        r.reverse()
+
+        for miller in itertools.product(r, r, r):
+            if miller[0] == miller_index[0] and \
+                            miller[1] == miller_index[1] and \
+                            miller[2] == miller_index[2]:
+                continue
+
+            if any([i != 0 for i in miller]):
+                d = abs(reduce(gcd, miller))
+                miller = tuple([int(i / d) for i in miller])
+                if self.is_already_analyzed(miller):
+                    equivalent_millers.append(miller)
+
+        return equivalent_millers
+
+
 
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
                        bonds=None, tol=0.1, max_broken_bonds=0,
