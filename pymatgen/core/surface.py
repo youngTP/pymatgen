@@ -755,7 +755,6 @@ class GetMillerIndices(object):
         lattice of the structure.
         """
 
-
         unique_millers = []
 
         r = list(range(-self.max_index, self.max_index + 1))
@@ -784,19 +783,23 @@ class GetMillerIndices(object):
         r.reverse()
 
         for miller in itertools.product(r, r, r):
+            # print miller
             if miller[0] == miller_index[0] and \
-                            miller[1] == miller_index[1] and \
-                            miller[2] == miller_index[2]:
+               miller[1] == miller_index[1] and \
+               miller[2] == miller_index[2]:
+
                 continue
 
             if any([i != 0 for i in miller]):
                 d = abs(reduce(gcd, miller))
                 miller = tuple([int(i / d) for i in miller])
-                if self.is_already_analyzed(miller):
+                if in_coord_list(equivalent_millers, miller):
+                    continue
+                if self.is_already_analyzed(miller,
+                                            unique_millers=equivalent_millers):
                     equivalent_millers.append(miller)
 
         return equivalent_millers
-
 
 
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
