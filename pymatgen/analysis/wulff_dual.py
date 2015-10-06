@@ -125,7 +125,7 @@ class wulff_3d(object):
         on_wulff = []
         for plane in wulff_plane_list:
             if len(plane[-1]):
-                print plane[0], 'surface on the wulff shape: color:', plane[-2]
+                # print plane[0], 'surface on the wulff shape: color:', plane[-2]
                 plane[-1].sort()
                 outer_lines = []
                 for line in plane[-1]:
@@ -133,7 +133,7 @@ class wulff_3d(object):
                         outer_lines.append(line)
                 on_wulff.append([plane[0], plane[2], plane[-2], outer_lines])
             else:
-                print plane[0], 'surface not on the wulff shape'
+                # print plane[0], 'surface not on the wulff shape'
                 off_wulff.append(plane[0])
         on_wulff.sort(key= lambda x: x[-1][0], reverse=False)
         self.wulff_plane_list = wulff_plane_list
@@ -294,17 +294,17 @@ class wulff_3d(object):
                 Ys = data_test[:,1]
                 Zs = data_test[:,2]
                 if abs(np.dot(np.cross(v1, v2),(0, 0, 1))) > 10e-10:
-                    print 'top'
+                    # print 'top'
                     ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0)
 
                 # front view
                 if abs(np.dot(np.cross(v1, v2),(1, 0, 0))) > 10e-10:
-                    print 'front'
+                    # print 'front'
                     ax2.plot_trisurf(Ys, Zs, Xs,  color=plane_color, linewidth=0)
 
                 # side view
                 if abs(np.dot(np.cross(v1, v2),(0, 1, 0))) > 10e-10:
-                    print 'side'
+                    # print 'side'
                     ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0)
 
         ax1.set_aspect('equal', adjustable='box')
