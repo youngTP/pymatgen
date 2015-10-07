@@ -513,12 +513,10 @@ class SlabGenerator(object):
             slab.translate_sites(list(range(len(slab))), [0, 0, 0.5 - avg_c])
 
         if self.primitive:
-            print "# of atoms in slab before primitive: ", len(slab)
             prim = slab.get_primitive_structure(tolerance=tol)
             if energy is not None:
                 energy = prim.volume / slab.volume * energy
             slab = prim
-            print "# of atoms in slab after primitive: ", len(slab)
 
         return Slab(slab.lattice, slab.species_and_occu,
                     slab.frac_coords, self.miller_index,
