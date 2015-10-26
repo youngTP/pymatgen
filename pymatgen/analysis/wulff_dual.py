@@ -55,7 +55,7 @@ class wulff_3d(object):
         dimension = len(miller_list[0])
 
         color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x) for x in c[:len(miller_list)]]
-        self.clor_proxy = color_proxy
+        self.color_proxy = color_proxy
 
 
         self.structure = structure
@@ -76,7 +76,6 @@ class wulff_3d(object):
         normal_pt  = [x[2] for x in normal_e_m]
         dual_pt = [x[3] for x in normal_e_m]
         color_plane = [x[-2] for x in normal_e_m]
-
 
         dual_convex = ConvexHull(dual_pt)
         dual_cv_vert = dual_convex.vertices
@@ -109,7 +108,6 @@ class wulff_3d(object):
         self.wulff_convex = wulff_convex
         self.wulff_vertices = wulff_vertices
         # print dual_convex.simplices
-
 
         for vertices in wulff_vertices:
             vertices.sort()
@@ -144,6 +142,14 @@ class wulff_3d(object):
         self.wulff_plane_list = wulff_plane_list
         self.on_wulff = on_wulff
         self.off_wulff = off_wulff
+
+        self.color_area_list = self.get_wulff_area()
+        miller_area = []
+        for m in xrange(len(self.input_miller)):
+            print m
+            miller_area.append(self.input_miller[m] + ' Total Areas: ' + str(round(self.color_area_list[m], 4)))
+        self.miller_area = miller_area
+        print miller_area
 
     def get_all_miller_e(self):
         """
@@ -204,12 +210,49 @@ class wulff_3d(object):
 
         return cross_pt
 
+    def get_wulff_area(self):
+        wulff_pt_list = self.wulff_pt_list
+        on_wulff = self.on_wulff
+
+        color_area = [0, 0, 0, 0, 0, 0]
+
+        for plane in on_wulff:
+            plane_color = plane[-2]
+            print plane_color, plane[0]
+            plane_area = 0
+
+            for vertices in plane[1]:
+                i = vertices[0]
+                j = vertices[1]
+                k = vertices[2]
+                pts_vertices = [wulff_pt_list[i], wulff_pt_list[j], wulff_pt_list[k]]
+                v1 = pts_vertices[1] - pts_vertices[0]
+                v2 = pts_vertices[2] - pts_vertices[0]
+                # print v1, v2
+                area_tri = np.linalg.norm(np.cross(v1, v2)) / 2
+                print area_tri
+                plane_area += area_tri
+            print 'plane_area', plane_area
+
+            for i in xrange(len(self.input_miller)):
+                if plane_color == c[i]:
+                    color_area[i] += plane_area
+        print c, color_area
+
+        return color_area
+
+
+
     def plot_wulff_pts(self):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         for pt in self.wulff_pt_list:
             ax.scatter(pt[0], pt[1], pt[2])
         plt.gca().set_aspect('equal', adjustable='box')
+        ax.legend(self.color_proxy, self.miller_area, loc=4)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
 
         return plt
         #plt.show()
@@ -224,6 +267,10 @@ class wulff_3d(object):
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
         plt.gca().set_aspect('equal', adjustable='box')
+        ax.legend(self.color_proxy, self.miller_area, loc=4)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
 
         return plt
         #plt.show()
@@ -261,11 +308,12 @@ class wulff_3d(object):
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
 
         plt.gca().set_aspect('equal', adjustable='box')
-        ax.legend(self.color_proxy, self.input_miller)
+        ax.legend(self.color_proxy, self.miller_area, loc=4)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
         plt.draw()
-        import matplotlib.patches as mpatches
-        # red_patch = mpatches.Patch(color='red', label='The red data')
-        # plt.legend(handles=[red_patch])
+
         return plt
 
 
@@ -299,10 +347,10 @@ class wulff_3d(object):
                 Xs = data_test[:,0]
                 Ys = data_test[:,1]
                 Zs = data_test[:,2]
+                # top view
                 if abs(np.dot(np.cross(v1, v2),(0, 0, 1))) > 10e-10:
                     # print 'top'
                     ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0)
-
 
                 # front view
                 if abs(np.dot(np.cross(v1, v2),(1, 0, 0))) > 10e-10:
@@ -321,20 +369,35 @@ class wulff_3d(object):
                 ax3.plot([x[2] for x in edge], [x[0] for x in edge], [x[1] for x in edge], 'k', lw=2)
                 ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=3)
 
-        color_proxy = self.clor_proxy
+        color_proxy = self.color_proxy
 
         ax1.set_aspect('equal', adjustable='box')
-        ax1.legend(color_proxy, self.input_miller)
+        ax1.legend(color_proxy, self.miller_area, loc=4)
+        ax1.set_xlabel('x')
+        ax1.set_ylabel('y')
+        ax1.set_zlabel('z')
         ax1.set_title('top view')
-        ax2.set_aspect('equal', adjustable='box')
-        ax2.legend(color_proxy, self.input_miller)
-        ax2.set_title('front view')
-        ax3.set_aspect('equal', adjustable='box')
-        ax3.legend(color_proxy, self.input_miller)
-        ax3.set_title('side view')
-        ax4.set_aspect('equal', adjustable='box')
-        ax4.set_title('3d line view')
 
+        ax2.set_aspect('equal', adjustable='box')
+        ax2.legend(color_proxy, self.miller_area, loc=4)
+        ax2.set_xlabel('y')
+        ax2.set_ylabel('z')
+        ax2.set_zlabel('x')
+        ax2.set_title('front view')
+
+        ax3.set_aspect('equal', adjustable='box')
+        ax3.legend(color_proxy, self.miller_area, loc=4)
+        ax3.set_xlabel('z')
+        ax3.set_ylabel('x')
+        ax3.set_zlabel('y')
+        ax3.set_title('side view')
+
+        ax4.set_aspect('equal', adjustable='box')
+        ax4.legend(color_proxy, self.miller_area, loc=4)
+        ax4.set_xlabel('x')
+        ax4.set_ylabel('y')
+        ax4.set_zlabel('z')
+        ax4.set_title('3d line view')
 
         plt.draw()
         return plt
