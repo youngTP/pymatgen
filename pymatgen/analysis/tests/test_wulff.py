@@ -24,6 +24,6 @@ wulff_mo = wulff_3d(mo, miller_list, e_surf_list)
 
 plt1 = wulff_mo.plot_wulff_line()
 
-
+wulff_mo.get_wulff_area()
 wulff_mo.plot_wulff_color_3v()
 plt1.show()
