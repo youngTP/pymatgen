@@ -54,7 +54,12 @@ class wulff_3d(object):
         latt = structure.lattice
         dimension = len(miller_list[0])
 
+        color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x) for x in c[:len(miller_list)]]
+        self.clor_proxy = color_proxy
+
+
         self.structure = structure
+        self.input_miller = [str(x) for x in miller_list]
         self.unique_miller = miller_list
         self.e_surf_list = e_surf_list
         self.latt = latt
@@ -248,6 +253,7 @@ class wulff_3d(object):
                         pt3 = (pt1*s+pt2*(100-s)) * 0.01
                         pts_vertices.append(pt3)
                 pts += pts_vertices
+
             ax.plot([x[0] for x in pts], [x[1] for x in pts], [x[2] for x in pts], plane_color)
 
             for line in plane[-1]:
@@ -255,31 +261,31 @@ class wulff_3d(object):
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
 
         plt.gca().set_aspect('equal', adjustable='box')
-
-
+        ax.legend(self.color_proxy, self.input_miller)
         plt.draw()
+        import matplotlib.patches as mpatches
+        # red_patch = mpatches.Patch(color='red', label='The red data')
+        # plt.legend(handles=[red_patch])
         return plt
 
 
     def plot_wulff_color_3v(self):
-        fig = plt.figure()
+        fig1 = plt.figure(1)
+        fig2 = plt.figure(2)
+        fig3 = plt.figure(3)
+        fig4 = plt.figure(4)
         #  top view
-        ax1 = fig.add_subplot(2,2,1, projection='3d', azim=0, elev=90)
-        ax2 = fig.add_subplot(2,2,2, projection='3d', azim=0, elev=90)
-        ax3 = fig.add_subplot(2,2,3, projection='3d', azim=0, elev=90)
-        ax4 = fig.add_subplot(2,2,4, projection='3d')
+        ax1 = fig1.add_subplot(1, 1, 1, projection='3d', azim=0, elev=90)
+        ax2 = fig2.add_subplot(1, 1, 1, projection='3d', azim=0, elev=90)
+        ax3 = fig3.add_subplot(1, 1, 1, projection='3d', azim=0, elev=90)
+        ax4 = fig4.add_subplot(1, 1, 1, projection='3d')
         wulff_pt_list = self.wulff_pt_list
         on_wulff = self.on_wulff
 
         for plane in on_wulff:
             plane_color = plane[-2]
             print plane_color, plane[0]
-            for line in plane[-1]:
-                edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
-                ax1.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
-                ax2.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
-                ax3.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
-                ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
+
 
             for vertices in plane[1]:
                 i = vertices[0]
@@ -297,6 +303,7 @@ class wulff_3d(object):
                     # print 'top'
                     ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0)
 
+
                 # front view
                 if abs(np.dot(np.cross(v1, v2),(1, 0, 0))) > 10e-10:
                     # print 'front'
@@ -307,16 +314,26 @@ class wulff_3d(object):
                     # print 'side'
                     ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0)
 
+            for line in plane[-1]:
+                edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
+                ax1.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
+                ax2.plot([x[1] for x in edge], [x[2] for x in edge], [x[0] for x in edge], 'k', lw=2)
+                ax3.plot([x[2] for x in edge], [x[0] for x in edge], [x[1] for x in edge], 'k', lw=2)
+                ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=3)
+
+        color_proxy = self.clor_proxy
+
         ax1.set_aspect('equal', adjustable='box')
+        ax1.legend(color_proxy, self.input_miller)
         ax1.set_title('top view')
         ax2.set_aspect('equal', adjustable='box')
+        ax2.legend(color_proxy, self.input_miller)
         ax2.set_title('front view')
         ax3.set_aspect('equal', adjustable='box')
+        ax3.legend(color_proxy, self.input_miller)
         ax3.set_title('side view')
         ax4.set_aspect('equal', adjustable='box')
         ax4.set_title('3d line view')
-
-
 
 
         plt.draw()
