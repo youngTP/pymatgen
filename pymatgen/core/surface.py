@@ -811,6 +811,7 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
                 unique_millers.append(miller)
     return unique_millers
 
+
 class GetMillerIndices(object):
 
     def __init__(self, structure, max_index):
@@ -968,7 +969,12 @@ def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
     """
     all_slabs = []
 
+<<<<<<< master
     for miller in get_symmetrically_distinct_miller_indices(structure, max_index):
+=======
+    for miller in GetMillerIndices(structure, max_index).\
+            get_symmetrically_distinct_miller_indices():
+>>>>>>> HEAD~29
         gen = SlabGenerator(structure, miller, min_slab_size,
                             min_vacuum_size, lll_reduce=lll_reduce,
                             center_slab=center_slab, primitive=primitive,
