@@ -314,26 +314,25 @@ class MillerIndexFinderTests(PymatgenTest):
 
         self.assertEqual(len(indices), 3)
         indices = GetMillerIndices(self.cscl, 2).\
-            get_symmetrically_distinct_miller_indices
+            get_symmetrically_distinct_miller_indices()
         self.assertEqual(len(indices), 6)
 
         self.assertEqual(len(get_symmetrically_distinct_miller_indices(self.lifepo4, 1)), 7)
 
-
         # The TeI P-1 structure should have 13 unique millers (only inversion
         # symmetry eliminates pairs)
         indices = GetMillerIndices(self.tei, 1).\
-            get_symmetrically_distinct_miller_indices
+            get_symmetrically_distinct_miller_indices()
         self.assertEqual(len(indices), 13)
 
         # P1 and P-1 should have the same # of miller indices since surfaces
         # always have inversion symmetry.
         indices = GetMillerIndices(self.p1, 1).\
-            get_symmetrically_distinct_miller_indices
+            get_symmetrically_distinct_miller_indices()
         self.assertEqual(len(indices), 13)
 
         indices = GetMillerIndices(self.graphite, 2).\
-            get_symmetrically_distinct_miller_indices
+            get_symmetrically_distinct_miller_indices()
         self.assertEqual(len(indices), 12)
 
     def test_generate_all_slabs(self):
