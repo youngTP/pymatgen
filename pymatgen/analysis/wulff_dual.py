@@ -48,7 +48,7 @@ c = ['b', 'g', 'r', 'm', 'c', 'y']
 """
 
 class wulff_3d(object):
-    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='gist_rainbow'):
+    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='gist_rainbow', color_shift=0):
 
 
         symmops = SpacegroupAnalyzer(structure).get_point_group_operations()
@@ -62,11 +62,17 @@ class wulff_3d(object):
             bar_range.append(x)
         print bar_range
         c_map = plt.get_cmap(color_set)
-        cnorm = colors.Normalize(vmin=min(bar_range), vmax=max(bar_range))
+        cnorm = colors.Normalize(vmin=min(bar_range), vmax=max(bar_range) * (1 + color_shift * len(e_surf_list)))
         self.cnorm = cnorm
         scalar_map = cm.ScalarMappable(norm=cnorm, cmap=c_map)
 
-        color_e_surf = [scalar_map.to_rgba(x) for x in e_surf_list]
+        e_surf_list_cplot = []
+        for i in xrange(len(e_surf_list)):
+            print e_surf_list[i] + i * color_shift * (max(bar_range) - min(bar_range))
+            e_surf_list_cplot.append(e_surf_list[i] + i * color_shift * (max(bar_range) - min(bar_range)))
+
+        color_e_surf = [scalar_map.to_rgba(x) for x in e_surf_list_cplot]
+        print  '^ ^', color_e_surf
         self.color_e_surf = color_e_surf
         scalar_map.set_array(bar_range)
         self.scalarcm = scalar_map
@@ -429,7 +435,7 @@ class wulff_3d(object):
         ax4.set_ylabel('y')
         ax4.set_zlabel('z')
         ax4.set_title('3d line view')
-        fig4.colorbar(self.scalarcm, alpha=0.6, m)
+        fig4.colorbar(self.scalarcm, alpha=0.6)
 
         plt.draw()
         return plt
