@@ -14,6 +14,9 @@ import itertools
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 # from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.colorbar as colorbar
+import matplotlib.cm as cm
 import numpy as np
 from scipy import array
 from pyhull.convex_hull import ConvexHull
@@ -45,8 +48,8 @@ c = ['b', 'g', 'r', 'm', 'c', 'y']
 """
 
 class wulff_3d(object):
+    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='gist_rainbow'):
 
-    def __init__(self, structure, miller_list, e_surf_list):
 
         symmops = SpacegroupAnalyzer(structure).get_point_group_operations()
 
@@ -54,10 +57,24 @@ class wulff_3d(object):
         latt = structure.lattice
         dimension = len(miller_list[0])
 
-        color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x) for x in c[:len(miller_list)]]
+        # Set color mapping according to E_surf
+        for x in e_surf_list:
+            bar_range.append(x)
+        print bar_range
+        c_map = plt.get_cmap(color_set)
+        cnorm = colors.Normalize(vmin=min(bar_range), vmax=max(bar_range))
+        self.cnorm = cnorm
+        scalar_map = cm.ScalarMappable(norm=cnorm, cmap=c_map)
+
+        color_e_surf = [scalar_map.to_rgba(x) for x in e_surf_list]
+        self.color_e_surf = color_e_surf
+        scalar_map.set_array(bar_range)
+        self.scalarcm = scalar_map
+
+        color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x, alpha=0.5) for x in color_e_surf]
+        self.bar_range = bar_range.sort()
         self.color_proxy = color_proxy
-
-
+        self.color_set = color_set
         self.structure = structure
         self.input_miller = [str(x) for x in miller_list]
         self.unique_miller = miller_list
@@ -88,6 +105,7 @@ class wulff_3d(object):
         wulff_pt_list = []
         wulff_pt_plane_list = []
         # dual_cv_vert
+        # [miller, wulff_pt]
         wulff_plane_list = [[x[-1], [], [], x[-2], []] for x in normal_e_m]
 
         for vertices in dual_cv_vert:
@@ -134,7 +152,7 @@ class wulff_3d(object):
                 for line in plane[-1]:
                     if plane[-1].count(line) == 1:
                         outer_lines.append(line)
-                on_wulff.append([plane[0], plane[2], plane[-2], outer_lines])
+                on_wulff.append([plane[0], plane[1], plane[2], plane[-2], outer_lines])
             else:
                 # print plane[0], 'surface not on the wulff shape'
                 off_wulff.append(plane[0])
@@ -150,6 +168,7 @@ class wulff_3d(object):
             miller_area.append(self.input_miller[m] + ' Total Areas: ' + str(round(self.color_area_list[m], 4)))
         self.miller_area = miller_area
         print miller_area
+        print len(e_surf_list)
 
     def get_all_miller_e(self):
         """
@@ -169,10 +188,11 @@ class wulff_3d(object):
         symmops = self.symmops
         # inv_latt_matrix = self.inv_latt_matrix
         recp = self.recp
+        color_e_surf = self.color_e_surf
         normal_e_m = []
         color = []
         for i in xrange(len(unique_miller)):
-            color.append(c[divmod(i, 6)[1]])
+            color.append(color_e_surf[divmod(i, len(color_e_surf))[1]])
         for i in xrange(len(unique_miller)):
             for op in symmops:
                 miller = list(op.operate(unique_miller[i]))
@@ -182,7 +202,7 @@ class wulff_3d(object):
                 else:
                     unique_miller.append(miller)
                     e_surf_list.append(e_surf_list[i])
-                    color.append(c[divmod(i, 6)[1]])
+                    color.append(color_e_surf[divmod(i, len(color_e_surf))[1]])
         for i in xrange(len(unique_miller)):
             miller = unique_miller[i]
             normal = recp.get_cartesian_coords(miller)
@@ -213,15 +233,17 @@ class wulff_3d(object):
     def get_wulff_area(self):
         wulff_pt_list = self.wulff_pt_list
         on_wulff = self.on_wulff
+        color_e_surf = self.color_e_surf
 
         color_area = [0, 0, 0, 0, 0, 0]
 
         for plane in on_wulff:
             plane_color = plane[-2]
+            plane_d = plane[2]
             print plane_color, plane[0]
             plane_area = 0
 
-            for vertices in plane[1]:
+            for vertices in plane[2]:
                 i = vertices[0]
                 j = vertices[1]
                 k = vertices[2]
@@ -235,7 +257,7 @@ class wulff_3d(object):
             print 'plane_area', plane_area
 
             for i in xrange(len(self.input_miller)):
-                if plane_color == c[i]:
+                if plane_color == color_e_surf[i]:
                     color_area[i] += plane_area
         print c, color_area
 
@@ -253,6 +275,9 @@ class wulff_3d(object):
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
+        fig.colorbar(self.scalarcm)
+
+
 
         return plt
         #plt.show()
@@ -271,6 +296,7 @@ class wulff_3d(object):
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
+        fig.colorbar(self.scalarcm)
 
         return plt
         #plt.show()
@@ -285,7 +311,7 @@ class wulff_3d(object):
             plane_color = plane[-2]
             print plane_color, plane[0]
             pts = []
-            for vertices in plane[1]:
+            for vertices in plane[2]:
                 i = vertices[0]
                 j = vertices[1]
                 k = vertices[2]
@@ -296,12 +322,12 @@ class wulff_3d(object):
                     pt2 = wulff_pt_list[i] + 0.005 * n * (wulff_pt_list[k]-wulff_pt_list[i])
                     pts_vertices.append(pt1)
                     pts_vertices.append(pt2)
-                    for s in range(1, 100):
-                        pt3 = (pt1*s+pt2*(100-s)) * 0.01
+                    for s in range(1, 200):
+                        pt3 = (pt1 * s + pt2 * (200 - s)) * 0.005
                         pts_vertices.append(pt3)
                 pts += pts_vertices
 
-            ax.plot([x[0] for x in pts], [x[1] for x in pts], [x[2] for x in pts], plane_color)
+            ax.plot([x[0] for x in pts], [x[1] for x in pts], [x[2] for x in pts], color=plane_color, alpha=0.4)
 
             for line in plane[-1]:
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
@@ -312,6 +338,9 @@ class wulff_3d(object):
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
+
+        fig.colorbar(self.scalarcm, alpha=0.4)
+
         plt.draw()
 
         return plt
@@ -334,8 +363,7 @@ class wulff_3d(object):
             plane_color = plane[-2]
             print plane_color, plane[0]
 
-
-            for vertices in plane[1]:
+            for vertices in plane[2]:
                 i = vertices[0]
                 j = vertices[1]
                 k = vertices[2]
@@ -350,24 +378,24 @@ class wulff_3d(object):
                 # top view
                 if abs(np.dot(np.cross(v1, v2),(0, 0, 1))) > 10e-10:
                     # print 'top'
-                    ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0)
+                    ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0, alpha=0.6)
 
                 # front view
                 if abs(np.dot(np.cross(v1, v2),(1, 0, 0))) > 10e-10:
                     # print 'front'
-                    ax2.plot_trisurf(Ys, Zs, Xs,  color=plane_color, linewidth=0)
+                    ax2.plot_trisurf(Ys, Zs, Xs, color=plane_color, linewidth=0, alpha=0.6)
 
                 # side view
                 if abs(np.dot(np.cross(v1, v2),(0, 1, 0))) > 10e-10:
                     # print 'side'
-                    ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0)
+                    ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0, alpha=0.6)
 
             for line in plane[-1]:
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
-                ax1.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=2)
-                ax2.plot([x[1] for x in edge], [x[2] for x in edge], [x[0] for x in edge], 'k', lw=2)
-                ax3.plot([x[2] for x in edge], [x[0] for x in edge], [x[1] for x in edge], 'k', lw=2)
-                ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=3)
+                ax1.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1.5)
+                ax2.plot([x[1] for x in edge], [x[2] for x in edge], [x[0] for x in edge], 'k', lw=1.5)
+                ax3.plot([x[2] for x in edge], [x[0] for x in edge], [x[1] for x in edge], 'k', lw=1.5)
+                ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1.5)
 
         color_proxy = self.color_proxy
 
@@ -377,6 +405,7 @@ class wulff_3d(object):
         ax1.set_ylabel('y')
         ax1.set_zlabel('z')
         ax1.set_title('top view')
+        fig1.colorbar(self.scalarcm, alpha=0.6)
 
         ax2.set_aspect('equal', adjustable='box')
         ax2.legend(color_proxy, self.miller_area, loc=4)
@@ -384,6 +413,7 @@ class wulff_3d(object):
         ax2.set_ylabel('z')
         ax2.set_zlabel('x')
         ax2.set_title('front view')
+        fig2.colorbar(self.scalarcm, alpha=0.6)
 
         ax3.set_aspect('equal', adjustable='box')
         ax3.legend(color_proxy, self.miller_area, loc=4)
@@ -391,6 +421,7 @@ class wulff_3d(object):
         ax3.set_ylabel('x')
         ax3.set_zlabel('y')
         ax3.set_title('side view')
+        fig3.colorbar(self.scalarcm, alpha=0.6)
 
         ax4.set_aspect('equal', adjustable='box')
         ax4.legend(color_proxy, self.miller_area, loc=4)
@@ -398,6 +429,7 @@ class wulff_3d(object):
         ax4.set_ylabel('y')
         ax4.set_zlabel('z')
         ax4.set_title('3d line view')
+        fig4.colorbar(self.scalarcm, alpha=0.6, m)
 
         plt.draw()
         return plt
