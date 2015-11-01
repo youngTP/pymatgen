@@ -48,7 +48,8 @@ c = ['b', 'g', 'r', 'm', 'c', 'y']
 """
 
 class wulff_3d(object):
-    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='gist_rainbow', color_shift=0):
+    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='cool',
+                 color_shift=0, grid_off=True, axis_off=True, show_area=True, alpha=0.5):
 
 
         symmops = SpacegroupAnalyzer(structure).get_point_group_operations()
@@ -73,14 +74,19 @@ class wulff_3d(object):
 
         color_e_surf = [scalar_map.to_rgba(x) for x in e_surf_list_cplot]
         print  '^ ^', color_e_surf
-        self.color_e_surf = color_e_surf
         scalar_map.set_array(bar_range)
-        self.scalarcm = scalar_map
 
-        color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x, alpha=0.5) for x in color_e_surf]
+        color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x, alpha=alpha) for x in color_e_surf]
+        self.scalarcm = scalar_map
+        self.color_e_surf = color_e_surf
         self.bar_range = bar_range.sort()
         self.color_proxy = color_proxy
         self.color_set = color_set
+        self.axis_off = axis_off
+        self.show_area = show_area
+        self.alpha = alpha
+        self.grid_off = grid_off
+
         self.structure = structure
         self.input_miller = [str(x) for x in miller_list]
         self.unique_miller = miller_list
@@ -265,10 +271,9 @@ class wulff_3d(object):
             for i in xrange(len(self.input_miller)):
                 if plane_color == color_e_surf[i]:
                     color_area[i] += plane_area
-        print c, color_area
+        print color_e_surf, color_area
 
         return color_area
-
 
 
     def plot_wulff_pts(self):
@@ -277,13 +282,19 @@ class wulff_3d(object):
         for pt in self.wulff_pt_list:
             ax.scatter(pt[0], pt[1], pt[2])
         plt.gca().set_aspect('equal', adjustable='box')
-        ax.legend(self.color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax.legend(self.color_proxy, self.input_miller, loc=4)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
         fig.colorbar(self.scalarcm)
 
-
+        if self.grid_off == True:
+            ax.grid('off')
+        if self.axis_off == True:
+            ax.axis('off')
 
         return plt
         #plt.show()
@@ -298,11 +309,19 @@ class wulff_3d(object):
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
         plt.gca().set_aspect('equal', adjustable='box')
-        ax.legend(self.color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax.legend(self.color_proxy, self.input_miller, loc=4)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
         fig.colorbar(self.scalarcm)
+
+        if self.grid_off == True:
+            ax.grid('off')
+        if self.axis_off == True:
+            ax.axis('off')
 
         return plt
         #plt.show()
@@ -333,19 +352,27 @@ class wulff_3d(object):
                         pts_vertices.append(pt3)
                 pts += pts_vertices
 
-            ax.plot([x[0] for x in pts], [x[1] for x in pts], [x[2] for x in pts], color=plane_color, alpha=0.4)
+            ax.plot([x[0] for x in pts], [x[1] for x in pts], [x[2] for x in pts], color=plane_color, alpha=self.alpha)
 
             for line in plane[-1]:
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
 
         plt.gca().set_aspect('equal', adjustable='box')
-        ax.legend(self.color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax.legend(self.color_proxy, self.input_miller, loc=4)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
 
-        fig.colorbar(self.scalarcm, alpha=0.4)
+        fig.colorbar(self.scalarcm, alpha=self.alpha)
+
+        if self.grid_off == True:
+            ax.grid('off')
+        if self.axis_off == True:
+            ax.axis('off')
 
         plt.draw()
 
@@ -406,36 +433,67 @@ class wulff_3d(object):
         color_proxy = self.color_proxy
 
         ax1.set_aspect('equal', adjustable='box')
-        ax1.legend(color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax1.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax1.legend(self.color_proxy, self.input_miller, loc=4)
         ax1.set_xlabel('x')
         ax1.set_ylabel('y')
         ax1.set_zlabel('z')
         ax1.set_title('top view')
-        fig1.colorbar(self.scalarcm, alpha=0.6)
+        fig1.colorbar(self.scalarcm, alpha=self.alpha)
+        if self.grid_off == True:
+            ax1.grid('off')
+        if self.axis_off == True:
+            ax1.axis('off')
+
 
         ax2.set_aspect('equal', adjustable='box')
-        ax2.legend(color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax2.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax2.legend(self.color_proxy, self.input_miller, loc=4)
         ax2.set_xlabel('y')
         ax2.set_ylabel('z')
         ax2.set_zlabel('x')
         ax2.set_title('front view')
-        fig2.colorbar(self.scalarcm, alpha=0.6)
+        fig2.colorbar(self.scalarcm, alpha=self.alpha)
+        if self.grid_off == True:
+            ax2.grid('off')
+        if self.axis_off == True:
+            ax2.axis('off')
+
 
         ax3.set_aspect('equal', adjustable='box')
-        ax3.legend(color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax3.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax3.legend(self.color_proxy, self.input_miller, loc=4)
         ax3.set_xlabel('z')
         ax3.set_ylabel('x')
         ax3.set_zlabel('y')
         ax3.set_title('side view')
-        fig3.colorbar(self.scalarcm, alpha=0.6)
+        fig3.colorbar(self.scalarcm, alpha=self.alpha)
+        if self.grid_off == True:
+            ax3.grid('off')
+        if self.axis_off == True:
+            ax3.axis('off')
+
 
         ax4.set_aspect('equal', adjustable='box')
-        ax4.legend(color_proxy, self.miller_area, loc=4)
+        if self.show_area == True:
+            ax4.legend(self.color_proxy, self.miller_area, loc=4)
+        else:
+            ax4.legend(self.color_proxy, self.input_miller, loc=4)
         ax4.set_xlabel('x')
         ax4.set_ylabel('y')
         ax4.set_zlabel('z')
         ax4.set_title('3d line view')
-        fig4.colorbar(self.scalarcm, alpha=0.6)
+        fig4.colorbar(self.scalarcm, alpha=self.alpha)
+        if self.grid_off == True:
+            ax4.grid('off')
+        if self.axis_off == True:
+            ax4.axis('off')
 
         plt.draw()
         return plt
