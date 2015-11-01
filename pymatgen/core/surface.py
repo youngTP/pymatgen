@@ -660,47 +660,6 @@ class SlabGenerator(object):
         return sorted(slabs, key=lambda s: s.energy)
 
 
-def get_symmetrically_distinct_miller_indices(structure, max_index):
-    """
-    Returns all symmetrically distinct indices below a certain max-index for
-    a given structure. Analysis is based on the symmetry of the reciprocal
-    lattice of the structure.
-
-    Args:
-        structure (Structure): input structure.
-        max_index (int): The maximum index. For example, a max_index of 1
-            means that (100), (110), and (111) are returned for the cubic
-            structure. All other indices are equivalent to one of these.
-    """
-
-    recp_lattice = structure.lattice.reciprocal_lattice_crystallographic
-    # Need to make sure recp lattice is big enough, otherwise symmetry
-    # determination will fail. We set the overall volume to 1.
-    recp_lattice = recp_lattice.scale(1)
-    recp = Structure(recp_lattice, ["H"], [[0, 0, 0]])
-
-    # Creates a function that uses the symmetry operations in the
-    # structure to find Miller indices that might give repetitive slabs
-    analyzer = SpacegroupAnalyzer(recp, symprec=0.001)
-    symm_ops = analyzer.get_symmetry_operations()
-    unique_millers = []
-
-    def is_already_analyzed(miller_index):
-        for op in symm_ops:
-            if in_coord_list(unique_millers, op.operate(miller_index)):
-                return True
-        return False
-
-    r = list(range(-max_index, max_index + 1))
-    r.reverse()
-    for miller in itertools.product(r, r, r):
-        if any([i != 0 for i in miller]):
-            d = abs(reduce(gcd, miller))
-            miller = tuple([int(i / d) for i in miller])
-            if not is_already_analyzed(miller):
-                unique_millers.append(miller)
-    return unique_millers
-
 class GetMillerIndices(object):
 
     def __init__(self, structure, max_index):
@@ -849,8 +808,9 @@ def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
             usually sufficient.
     """
     all_slabs = []
-    for miller in get_symmetrically_distinct_miller_indices(structure,
-                                                            max_index):
+
+    for miller in GetMillerIndices(structure, max_index).\
+            get_symmetrically_distinct_miller_indices():
         gen = SlabGenerator(structure, miller, min_slab_size,
                             min_vacuum_size, lll_reduce=lll_reduce,
                             center_slab=center_slab, primitive=primitive,

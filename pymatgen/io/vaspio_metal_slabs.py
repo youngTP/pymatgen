@@ -35,7 +35,7 @@ class MPSlabVaspInputSet(DictVaspInputSet):
             Other kwargs supported by :class:`DictVaspInputSet`.
     """
     def __init__(self, user_incar_settings=None, kpoints0=[],
-                  k_product=45, potcar_functional='PBE', bulk=False, **kwargs):
+                  k_product=50, potcar_functional='PBE', bulk=False, **kwargs):
         vis = MPVaspInputSet(ediff_per_atom=False).as_dict()
         DictVaspInputSet.__init__(self, "MaterialsProject Slab", vis["config_dict"],
                                   **kwargs)
