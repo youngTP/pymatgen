@@ -48,7 +48,7 @@ c = ['b', 'g', 'r', 'm', 'c', 'y']
 """
 
 class wulff_3d(object):
-    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='autumn',
+    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='autumn', brewer_color=[],
                  color_shift=0, grid_off=True, axis_off=True, show_area=True, label_miller=True, alpha=0.5):
 
 
@@ -78,6 +78,7 @@ class wulff_3d(object):
 
         color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x, alpha=alpha) for x in color_e_surf]
         bar_range.sort()
+        self.brewer_color = brewer_color
         self.scalarcm = scalar_map
         self.color_e_surf = color_e_surf
         self.bar_range = bar_range
@@ -91,6 +92,7 @@ class wulff_3d(object):
 
         self.structure = structure
         self.input_miller = [str(x) for x in miller_list]
+        self.input_esurf = [x for x in e_surf_list]
         self.unique_miller = miller_list
         self.e_surf_list = e_surf_list
         self.latt = latt
@@ -546,3 +548,97 @@ class wulff_3d(object):
         plt.draw()
         return plt
 
+    # with brewer color
+    def plot_wulff_color_bw(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        wulff_pt_list = self.wulff_pt_list
+        on_wulff = self.on_wulff
+        bw_color = self.brewer_color
+
+        for plane in on_wulff:
+            # get color from the order of original brewer number
+            plane_color = bw_color[plane[4]]
+            print plane_color, plane[0]
+            pts = []
+            for vertices in plane[2]:
+                i = vertices[0]
+                j = vertices[1]
+                k = vertices[2]
+
+                pts_vertices = [wulff_pt_list[i], wulff_pt_list[j], wulff_pt_list[k]]
+                for n in range(1, 200):
+                    pt1 = wulff_pt_list[i] + 0.005 * n * (wulff_pt_list[j] - wulff_pt_list[i])
+                    pt2 = wulff_pt_list[i] + 0.005 * n * (wulff_pt_list[k] - wulff_pt_list[i])
+                    pts_vertices.append(pt1)
+                    pts_vertices.append(pt2)
+                    for s in range(1, 200):
+                        pt3 = (pt1 * s + pt2 * (200 - s)) * 0.005
+                        pts_vertices.append(pt3)
+                pts += pts_vertices
+
+            ax.plot([x[0] for x in pts], [x[1] for x in pts], [x[2] for x in pts], color=plane_color, alpha=self.alpha)
+
+            for line in plane[-1]:
+                edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
+                ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
+
+        plt.gca().set_aspect('equal', adjustable='box')
+        color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x, alpha=self.alpha) for x in self.brewer_color]
+        if self.show_area == True:
+            ax.legend(color_proxy, self.miller_area, loc='upper left',
+                      bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
+        else:
+            ax.legend(color_proxy, self.input_miller, loc='upper center',
+                      bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+
+        ax1 = fig.add_axes([0.75, 0.15, 0.05, 0.70])
+        cmap = colors.ListedColormap(self.brewer_color)
+        cmap.set_over('0.75')
+        cmap.set_under('0.25')
+        bounds = self.input_esurf
+        bounds.append(2 * bounds[-1] - bounds[-2])
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+        cbar = colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm,
+                                     boundaries=[0] + bounds + [10],
+                                     extend='both',
+                                     ticks=bounds,  # optional
+                                     spacing='proportional',
+                                     orientation='vertical')
+        cbar.set_label('Surface Energies ($J/m^2$)')
+
+        # [normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller]
+        e_range = max(self.bar_range) - min(self.bar_range)
+        input_miller_ind = xrange(len(self.input_miller))
+        if self.label_miller == True:
+            for plane in self.normal_e_m:
+                # normal pts on plane, add label there
+                plot_m = 0
+                unplot_miller = []
+                for i in input_miller_ind:
+                    if plane[-2] == i:
+                        plot_m = 1
+                    else:
+                        unplot_miller.append(i)
+                if plot_m == 0:
+                    continue
+                input_miller_ind = unplot_miller
+                print 'zan~', plane[2], plane[4]
+                normal_pts = [x * (plane[1] + 0.1 * e_range) for x in plane[0]]
+                m_orig = '[' + str(plane[-1][0]) + str(plane[-1][1]) + str(plane[-1][2]) + ']'
+                zdir = [plane[0][0], plane[0][1], plane[0][2]]
+                ax.text(normal_pts[0], normal_pts[1], normal_pts[2], m_orig, zdir)
+                if len(unplot_miller) == 0:
+                    break
+
+        if self.grid_off == True:
+            ax.grid('off')
+        if self.axis_off == True:
+            ax.axis('off')
+
+        plt.draw()
+
+        return plt
