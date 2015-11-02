@@ -48,8 +48,8 @@ c = ['b', 'g', 'r', 'm', 'c', 'y']
 """
 
 class wulff_3d(object):
-    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='cool',
-                 color_shift=0, grid_off=True, axis_off=True, show_area=True, alpha=0.5):
+    def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='autumn',
+                 color_shift=0, grid_off=True, axis_off=True, show_area=True, label_miller=True, alpha=0.5):
 
 
         symmops = SpacegroupAnalyzer(structure).get_point_group_operations()
@@ -77,14 +77,16 @@ class wulff_3d(object):
         scalar_map.set_array(bar_range)
 
         color_proxy = [plt.Rectangle((2, 2), 1, 1, fc=x, alpha=alpha) for x in color_e_surf]
+        bar_range.sort()
         self.scalarcm = scalar_map
         self.color_e_surf = color_e_surf
-        self.bar_range = bar_range.sort()
+        self.bar_range = bar_range
         self.color_proxy = color_proxy
         self.color_set = color_set
-        self.axis_off = axis_off
+        self.label_miller = label_miller
         self.show_area = show_area
         self.alpha = alpha
+        self.axis_off = axis_off
         self.grid_off = grid_off
 
         self.structure = structure
@@ -98,13 +100,13 @@ class wulff_3d(object):
         self.dimension = dimension
 
         normal_e_m = self.get_all_miller_e()
-        # [normal, e_surf_list[i], normal_pt, dual_pt, miller]
+        # [normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller]
         self.normal_e_m = normal_e_m
         print len(normal_e_m)
 
         normal_pt  = [x[2] for x in normal_e_m]
         dual_pt = [x[3] for x in normal_e_m]
-        color_plane = [x[-2] for x in normal_e_m]
+        color_plane = [x[4] for x in normal_e_m]
 
         dual_convex = ConvexHull(dual_pt)
         dual_cv_vert = dual_convex.vertices
@@ -118,7 +120,7 @@ class wulff_3d(object):
         wulff_pt_plane_list = []
         # dual_cv_vert
         # [miller, wulff_pt]
-        wulff_plane_list = [[x[-1], [], [], x[-2], []] for x in normal_e_m]
+        wulff_plane_list = [[x[-1], [], [], x[4], x[5], []] for x in normal_e_m]
 
         for vertices in dual_cv_vert:
             # print vertices
@@ -164,7 +166,7 @@ class wulff_3d(object):
                 for line in plane[-1]:
                     if plane[-1].count(line) == 1:
                         outer_lines.append(line)
-                on_wulff.append([plane[0], plane[1], plane[2], plane[-2], outer_lines])
+                on_wulff.append([plane[0], plane[1], plane[2], plane[3], plane[4], outer_lines])
             else:
                 # print plane[0], 'surface not on the wulff shape'
                 off_wulff.append(plane[0])
@@ -193,9 +195,10 @@ class wulff_3d(object):
             normal[0]x + normal[1]y + normal[2]z = e_surf
 
         return:
-            normal_e_m, item: [normal, e_surf, normal_pt, dual_pt, miller]
+            normal_e_m, item: [normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller]
         """
         unique_miller = self.unique_miller
+        unique_miller_ind = list(enumerate(unique_miller))
         e_surf_list = self.e_surf_list
         symmops = self.symmops
         # inv_latt_matrix = self.inv_latt_matrix
@@ -203,9 +206,10 @@ class wulff_3d(object):
         color_e_surf = self.color_e_surf
         normal_e_m = []
         color = []
-        for i in xrange(len(unique_miller)):
+        miller_ind_orig = [x[0] for x in unique_miller_ind]
+        for i in xrange(len(unique_miller_ind)):
             color.append(color_e_surf[divmod(i, len(color_e_surf))[1]])
-        for i in xrange(len(unique_miller)):
+        for i in xrange(len(unique_miller_ind)):
             for op in symmops:
                 miller = list(op.operate(unique_miller[i]))
                 miller = [int(x) for x in miller]
@@ -214,7 +218,9 @@ class wulff_3d(object):
                 else:
                     unique_miller.append(miller)
                     e_surf_list.append(e_surf_list[i])
+                    miller_ind_orig.append(i)
                     color.append(color_e_surf[divmod(i, len(color_e_surf))[1]])
+
         for i in xrange(len(unique_miller)):
             miller = unique_miller[i]
             normal = recp.get_cartesian_coords(miller)
@@ -223,7 +229,8 @@ class wulff_3d(object):
             normal_pt = [x*e_surf for x in normal]
             dual_pt = [x/e_surf for x in normal]
             color_plane = color[i]
-            normal_e_m.append([normal, e_surf, normal_pt, dual_pt, color_plane, miller])
+            m_ind_orig = miller_ind_orig[i]
+            normal_e_m.append([normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller])
         # sorted by e_surf
         normal_e_m.sort(key= lambda x: x[1])
 
@@ -246,14 +253,17 @@ class wulff_3d(object):
         wulff_pt_list = self.wulff_pt_list
         on_wulff = self.on_wulff
         color_e_surf = self.color_e_surf
-
-        color_area = [0, 0, 0, 0, 0, 0]
+        # initialize
+        ind_area = [0] * len(color_e_surf)
+        plane_center_label = []
 
         for plane in on_wulff:
-            plane_color = plane[-2]
+            plane_color = plane[3]
+            plane_m_ind_orig = plane[4]
             plane_d = plane[2]
             print plane_color, plane[0]
             plane_area = 0
+
 
             for vertices in plane[2]:
                 i = vertices[0]
@@ -269,11 +279,11 @@ class wulff_3d(object):
             print 'plane_area', plane_area
 
             for i in xrange(len(self.input_miller)):
-                if plane_color == color_e_surf[i]:
-                    color_area[i] += plane_area
-        print color_e_surf, color_area
+                if plane_m_ind_orig == i:
+                    ind_area[i] += plane_area
+        print color_e_surf, ind_area
 
-        return color_area
+        return ind_area
 
 
     def plot_wulff_pts(self):
@@ -283,9 +293,11 @@ class wulff_3d(object):
             ax.scatter(pt[0], pt[1], pt[2])
         plt.gca().set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax.legend(self.color_proxy, self.miller_area, loc=4)
+            ax.legend(self.color_proxy, self.miller_area, loc='upper left',
+                      bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax.legend(self.color_proxy, self.input_miller, loc=4)
+            ax.legend(self.color_proxy, self.input_miller, loc='upper center',
+                      bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
@@ -310,9 +322,11 @@ class wulff_3d(object):
                 ax.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1)
         plt.gca().set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax.legend(self.color_proxy, self.miller_area, loc=4)
+            ax.legend(self.color_proxy, self.miller_area, loc='upper left',
+                      bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax.legend(self.color_proxy, self.input_miller, loc=4)
+            ax.legend(self.color_proxy, self.input_miller, loc='upper center',
+                      bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
@@ -333,7 +347,7 @@ class wulff_3d(object):
         on_wulff = self.on_wulff
 
         for plane in on_wulff:
-            plane_color = plane[-2]
+            plane_color = plane[3]
             print plane_color, plane[0]
             pts = []
             for vertices in plane[2]:
@@ -360,14 +374,40 @@ class wulff_3d(object):
 
         plt.gca().set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax.legend(self.color_proxy, self.miller_area, loc=4)
+            ax.legend(self.color_proxy, self.miller_area, loc='upper left',
+                      bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax.legend(self.color_proxy, self.input_miller, loc=4)
+            ax.legend(self.color_proxy, self.input_miller, loc='upper center',
+                      bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
 
         fig.colorbar(self.scalarcm, alpha=self.alpha)
+
+        # [normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller]
+        e_range = max(self.bar_range) - min(self.bar_range)
+        input_miller_ind = xrange(len(self.input_miller))
+        if self.label_miller == True:
+            for plane in self.normal_e_m:
+                # normal pts on plane, add label there
+                plot_m = 0
+                unplot_miller = []
+                for i in input_miller_ind:
+                    if plane[-2] == i:
+                        plot_m = 1
+                    else:
+                        unplot_miller.append(i)
+                if plot_m == 0:
+                    continue
+                input_miller_ind = unplot_miller
+                print 'zan~', plane[2], plane[4]
+                normal_pts = [x * (plane[1] + 0.1 * e_range) for x in plane[0]]
+                m_orig = '[' + str(plane[-1][0]) + str(plane[-1][1]) + str(plane[-1][2]) + ']'
+                zdir = [plane[0][0], plane[0][1], plane[0][2]]
+                ax.text(normal_pts[0], normal_pts[1], normal_pts[2], m_orig, zdir)
+                if len(unplot_miller) == 0:
+                    break
 
         if self.grid_off == True:
             ax.grid('off')
@@ -393,7 +433,7 @@ class wulff_3d(object):
         on_wulff = self.on_wulff
 
         for plane in on_wulff:
-            plane_color = plane[-2]
+            plane_color = plane[3]
             print plane_color, plane[0]
 
             for vertices in plane[2]:
@@ -434,13 +474,15 @@ class wulff_3d(object):
 
         ax1.set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax1.legend(self.color_proxy, self.miller_area, loc=4)
+            ax1.legend(self.color_proxy, self.miller_area, loc='upper left',
+                       bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax1.legend(self.color_proxy, self.input_miller, loc=4)
+            ax1.legend(self.color_proxy, self.input_miller, loc='upper center',
+                       bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax1.set_xlabel('x')
         ax1.set_ylabel('y')
         ax1.set_zlabel('z')
-        ax1.set_title('top view')
+        ax1.set_title('top view', loc='right')
         fig1.colorbar(self.scalarcm, alpha=self.alpha)
         if self.grid_off == True:
             ax1.grid('off')
@@ -450,13 +492,15 @@ class wulff_3d(object):
 
         ax2.set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax2.legend(self.color_proxy, self.miller_area, loc=4)
+            ax2.legend(self.color_proxy, self.miller_area, loc='upper left',
+                       bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax2.legend(self.color_proxy, self.input_miller, loc=4)
+            ax2.legend(self.color_proxy, self.input_miller, loc='upper center',
+                       bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax2.set_xlabel('y')
         ax2.set_ylabel('z')
         ax2.set_zlabel('x')
-        ax2.set_title('front view')
+        ax2.set_title('front view', loc='right')
         fig2.colorbar(self.scalarcm, alpha=self.alpha)
         if self.grid_off == True:
             ax2.grid('off')
@@ -466,13 +510,15 @@ class wulff_3d(object):
 
         ax3.set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax3.legend(self.color_proxy, self.miller_area, loc=4)
+            ax3.legend(self.color_proxy, self.miller_area, loc='upper left',
+                       bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax3.legend(self.color_proxy, self.input_miller, loc=4)
+            ax3.legend(self.color_proxy, self.input_miller, loc='upper center',
+                       bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax3.set_xlabel('z')
         ax3.set_ylabel('x')
         ax3.set_zlabel('y')
-        ax3.set_title('side view')
+        ax3.set_title('side view', loc='right')
         fig3.colorbar(self.scalarcm, alpha=self.alpha)
         if self.grid_off == True:
             ax3.grid('off')
@@ -482,13 +528,15 @@ class wulff_3d(object):
 
         ax4.set_aspect('equal', adjustable='box')
         if self.show_area == True:
-            ax4.legend(self.color_proxy, self.miller_area, loc=4)
+            ax4.legend(self.color_proxy, self.miller_area, loc='upper left',
+                       bbox_to_anchor=(-0.2, 1.05), fancybox=True, shadow=True)
         else:
-            ax4.legend(self.color_proxy, self.input_miller, loc=4)
+            ax4.legend(self.color_proxy, self.input_miller, loc='upper center',
+                       bbox_to_anchor=(0.5, 1.05), ncol=2, fancybox=True, shadow=True)
         ax4.set_xlabel('x')
         ax4.set_ylabel('y')
         ax4.set_zlabel('z')
-        ax4.set_title('3d line view')
+        ax4.set_title('3d line view', loc='right')
         fig4.colorbar(self.scalarcm, alpha=self.alpha)
         if self.grid_off == True:
             ax4.grid('off')

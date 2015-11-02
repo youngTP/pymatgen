@@ -19,11 +19,15 @@ e_surf_list = [3.34, 2.92, 3.24]
 
 miller_list = [[0, 0, 1], [1, 1, 0], [1, 1, 1]]
 
-wulff_mo = wulff_3d(mo, miller_list, e_surf_list)
+wulff_mo = wulff_3d(mo, miller_list, e_surf_list, alpha=0.5)
 # wulff_cu.plot_wulff_pts()
 
 plt1 = wulff_mo.plot_wulff_line()
+plt2 = wulff_mo.plot_wulff_pts()
+
 
 wulff_mo.get_wulff_area()
 wulff_mo.plot_wulff_color_3v()
+wulff_mo.plot_wulff_color()
 plt1.show()
+plt2.show()
