@@ -15,19 +15,21 @@ mo = Structure(Lattice.cubic(3.16), ["Mo", "Mo"],
 # plt_li7 = wulff_li7.plot_wulff_line()
 # plt_li7.show()
 
-e_surf_list = [3.34, 2.92, 3.24]
+e_surf_list = [2.92, 3.24, 3.34]
 
-miller_list = [[0, 0, 1], [1, 1, 0], [1, 1, 1]]
+miller_list = [[1, 1, 0], [1, 1, 1], [0, 0, 1]]
 
-wulff_mo = wulff_3d(mo, miller_list, e_surf_list, alpha=0.5)
+wulff_mo = wulff_3d(mo, miller_list, e_surf_list, alpha=0.85, brewer_color=['#f03b20', '#feb24c', '#ffeda0'])
 # wulff_cu.plot_wulff_pts()
-
+#
 plt1 = wulff_mo.plot_wulff_line()
-plt2 = wulff_mo.plot_wulff_pts()
+# plt2 = wulff_mo.plot_wulff_pts()
 
 
 wulff_mo.get_wulff_area()
 wulff_mo.plot_wulff_color_3v()
 wulff_mo.plot_wulff_color()
+plt = wulff_mo.plot_wulff_color_bw()
+plt.show()
 plt1.show()
-plt2.show()
+# plt2.show()
