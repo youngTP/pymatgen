@@ -47,10 +47,27 @@ c = ['b', 'g', 'r', 'm', 'c', 'y']
 
 """
 
+"""
+Notes for brewer color plotting methods:
+get brewer_color from (distinct values)
+    http://colorbrewer2.org/
+make sure the input e_surf are from small to large,
+and the brewer color from dark to light
+(since small e_surf tends to have larger area on wulff shapes)
+    some color set of 5:
+        1. Leaves: ['#bd0026', '#f03b20', '#fd8d3c', '#fecc5c', '#ffffb2']
+        2. Milk-Wine: ['#b30000', '#e34a33', '#fc8d59', '#fdcc8a', '#fef0d9']
+        3. Cloud-Night: ['#810f7c', '#8856a7', '#8c96c6', '#b3cde3', '#edf8fb']
+        4. Cherry-Violet: ['#7a0177', '#c51b8a', '#f768a1', '#fbb4b9', '#feebe2']
+        5. Boat-Ocean: ['#253494', '#2c7fb8', '#41b6c4', '#a1dab4','#a1dab4', '#ffffcc']
+    But when set values to brewer_color, make sure every surface have a related color
+    (len(e_surf_list)=len(brewer_color))
+"""
+
 class wulff_3d(object):
+
     def __init__(self, structure, miller_list, e_surf_list, bar_range=[], color_set='autumn', brewer_color=[],
                  color_shift=0, grid_off=True, axis_off=True, show_area=True, label_miller=True, alpha=0.5):
-
 
         symmops = SpacegroupAnalyzer(structure).get_point_group_operations()
 
@@ -197,7 +214,8 @@ class wulff_3d(object):
             normal[0]x + normal[1]y + normal[2]z = e_surf
 
         return:
-            normal_e_m, item: [normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller]
+            normal_e_m, item: [normal, e_surf, normal_pt, dual_pt,
+            color_plane, m_ind_orig, miller]
         """
         unique_miller = self.unique_miller
         unique_miller_ind = list(enumerate(unique_miller))
@@ -232,7 +250,8 @@ class wulff_3d(object):
             dual_pt = [x/e_surf for x in normal]
             color_plane = color[i]
             m_ind_orig = miller_ind_orig[i]
-            normal_e_m.append([normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller])
+            normal_e_m.append([normal, e_surf, normal_pt, dual_pt,
+                               color_plane, m_ind_orig, miller])
         # sorted by e_surf
         normal_e_m.sort(key= lambda x: x[1])
 
@@ -266,7 +285,6 @@ class wulff_3d(object):
             print plane_color, plane[0]
             plane_area = 0
 
-
             for vertices in plane[2]:
                 i = vertices[0]
                 j = vertices[1]
@@ -286,6 +304,7 @@ class wulff_3d(object):
         print color_e_surf, ind_area
 
         return ind_area
+
 
 
     def plot_wulff_pts(self):
@@ -453,17 +472,17 @@ class wulff_3d(object):
                 # top view
                 if abs(np.dot(np.cross(v1, v2),(0, 0, 1))) > 10e-10:
                     # print 'top'
-                    ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0, alpha=0.6)
+                    ax1.plot_trisurf(Xs, Ys, Zs, color=plane_color, linewidth=0, alpha=self.alpha)
 
                 # front view
                 if abs(np.dot(np.cross(v1, v2),(1, 0, 0))) > 10e-10:
                     # print 'front'
-                    ax2.plot_trisurf(Ys, Zs, Xs, color=plane_color, linewidth=0, alpha=0.6)
+                    ax2.plot_trisurf(Ys, Zs, Xs, color=plane_color, linewidth=0, alpha=self.alpha)
 
                 # side view
                 if abs(np.dot(np.cross(v1, v2),(0, 1, 0))) > 10e-10:
                     # print 'side'
-                    ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0, alpha=0.6)
+                    ax3.plot_trisurf(Zs, Xs, Ys, color=plane_color, linewidth=0, alpha=self.alpha)
 
             for line in plane[-1]:
                 edge = [wulff_pt_list[line[0]], wulff_pt_list[line[1]]]
@@ -471,8 +490,6 @@ class wulff_3d(object):
                 ax2.plot([x[1] for x in edge], [x[2] for x in edge], [x[0] for x in edge], 'k', lw=1.5)
                 ax3.plot([x[2] for x in edge], [x[0] for x in edge], [x[1] for x in edge], 'k', lw=1.5)
                 ax4.plot([x[0] for x in edge], [x[1] for x in edge], [x[2] for x in edge], 'k', lw=1.5)
-
-        color_proxy = self.color_proxy
 
         ax1.set_aspect('equal', adjustable='box')
         if self.show_area == True:
@@ -509,7 +526,6 @@ class wulff_3d(object):
         if self.axis_off == True:
             ax2.axis('off')
 
-
         ax3.set_aspect('equal', adjustable='box')
         if self.show_area == True:
             ax3.legend(self.color_proxy, self.miller_area, loc='upper left',
@@ -526,7 +542,6 @@ class wulff_3d(object):
             ax3.grid('off')
         if self.axis_off == True:
             ax3.axis('off')
-
 
         ax4.set_aspect('equal', adjustable='box')
         if self.show_area == True:
@@ -549,9 +564,9 @@ class wulff_3d(object):
         return plt
 
     # with brewer color
-    def plot_wulff_color_bw(self):
+    def plot_wulff_color_bw(self, azim=30, elev=60):
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection='3d', azim=azim, elev=elev)
         wulff_pt_list = self.wulff_pt_list
         on_wulff = self.on_wulff
         bw_color = self.brewer_color
