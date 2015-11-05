@@ -1,6 +1,42 @@
 Change log
 ==========
 
+v3.2.4
+------
+
+* GaussianOutput can now parse frequencies, normal modes and cartesian forces
+  (Xin Chen).
+* Support for Aiida<->pymatgen conversion by the Aiida development team (Andrius
+  Merkys).
+* Specialized BSVasprun parser that is ~2-3x faster than Vasprun.
+* Refactor the boltztrap package (merge a few methods together) and add several
+  new methods (power factor, seebeck...)
+* Support of the new PCM format in QChem 4.3
+* Local environment analysis to pmg script.
+* Deprecate prettytable in favor of tabulate package.
+* Improvements to MITNEBVaspInputSet.
+* Misc bug fixes.
+
+v3.2.3
+------
+* Massive update to abinit support. Note that pymatgen.io.abinitio has 
+  been refactored to pymatgen.io.abinit. (Matteo, Setten)
+* NwOutput now supports parsing of Hessian matrices (contributed by Xin 
+  Chen)
+* Gaussian support now has the ability to read potential energy surface
+  and electronic transitions computed with TD-DFT (Germain Salvato 
+  Vallverdu)
+* Bug fixes for CifWriter with symmetry.
+* Bug fixes for surface generation and reactions.
+* Monty requirement increased.
+
+v3.2.1
+------
+* Fix wrong U value for Ce and Eu.
+* Properly handle empty multiline strings in Cif
+* Add ability to get specific data in MPRester.get_entries. Make all get_entry 
+  methods consistent  in kwargs.
+
 v3.2.0
 ------
 * Force conversion to an actual list in selective dynamics and velocities in
