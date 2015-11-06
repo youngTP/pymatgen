@@ -73,7 +73,8 @@ class Slab(Structure):
     def __init__(self, lattice, species, coords, miller_index,
                  oriented_unit_cell, shift, scale_factor,
                  validate_proximity=False, to_unit_cell=False,
-                 coords_are_cartesian=False, site_properties=None, energy=None):
+                 coords_are_cartesian=False, site_properties=None,
+                 energy=None, energy_per_atom=None):
         """
         Makes a Slab structure, a structure object with additional information
         and methods pertaining to slabs.
@@ -121,6 +122,7 @@ class Slab(Structure):
         self.shift = shift
         self.scale_factor = scale_factor
         self.energy = energy
+        self.energy_per_atom = energy_per_atom
         super(Slab, self).__init__(
             lattice, species, coords, validate_proximity=validate_proximity,
             to_unit_cell=to_unit_cell,
