@@ -19,6 +19,8 @@ from pyhull.delaunay import DelaunayTri
 from pyhull.voronoi import VoronoiTess
 from pymatgen.core.operations import SymmOp
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.symmetry.analyzer import generate_full_symmops
+from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
 
 __author__ = "Joseph Montoya"
 __copyright__ = "Copyright 2015, The Materials Project"
@@ -111,49 +113,69 @@ class AdsorbateSiteFinder(object):
             dist_vec = -dist_vec
         # find on-top sites
         surf_sites = self.find_surface_sites_by_height(slab)
+        ads_sites = [s.frac_coords for s in surf_sites]
         # Get bridge sites via DelaunayTri of extended surface mesh
         mesh = self.get_extended_surface_mesh(slab)
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         dt = DelaunayTri([m.frac_coords[:2] for m in mesh])
 
         for v in dt.vertices:
+            # Add bridge sites at edges of delaunay
             for data in itertools.combinations(v, 2):
-                bridge_sites += self.ensemble_center
+                ads_sites += [self.ensemble_center(mesh, data)]
+            # Add hollow sites at centers of delaunay
+            ads_sites += [self.ensemble_center(mesh, v)]
         import pdb; pdb.set_trace()
         if near_reduce:
-            coords = self.near_reduce(coords, threshold=near_reduce_threshold)
+            coords = self.near_reduce(ads_sites, 
+                                      threshold=near_reduce_threshold)
+        import pdb; pdb.set_trace()
         if symm_reduce:
-            coords = self.symm_reduce(coords)
+            coords = self.symm_reduce(coords, slab)
 
+        import pdb; pdb.set_trace()
         return coords
 
-    def symm_reduce(self, coords_set, slab, cartesian = False):
+    def symm_reduce(self, coords_set, slab, cartesian = False,
+                    threshold = 0.1):
         """
-
         """
         surf_sg = SpacegroupAnalyzer(slab, 0.1)
         symm_ops = surf_sg.get_symmetry_operations(cartesian = cartesian)
-        full_symm_ops = generate_full_symmops(symm_ops)
+        full_symm_ops = generate_full_symmops(symm_ops, tol=0.1)
         unique_coords = []
         for coords in coords_set:
+            incoord = False
             for op in full_symm_ops:
-                if in_coord_list(unique_coords, op.operate(coords)):
-                    unique_coords += [coords]
-        return unique_pos
+                if in_coord_list(unique_coords, op.operate(coords),
+                                 atol = threshold):
+                    incoord = True
+                    break
+            if not incoord:
+                unique_coords += [coords]
 
-    def near_reduce(self, coords_set, threshold = 0.1):
+        return unique_coords
+
+    def near_reduce(self, coords_set, threshold = 0.05, pbc = True):
         """
-
+        Prunes coordinate set for coordinates that are within a certain threshold
+        
+        Args:
+            coords_set (Nx3 array-like): list or array of coordinates
+            threshold (float): threshold value for distance
         """
         unique_coords = []
+        if pbc:
+            icl = in_coord_list_pbc
+        else:
+            icl = in_coord_list
         for coord in coords_set:
-            if in_coord_list(unique_coords, coord, threshold):
+            if not icl(unique_coords, coord, threshold):
                 unique_coords += [coord]
         return unique_coords
 
     def ensemble_center(self, site_list, indices, cartesian = False):
         """
-
         """
         if cartesian:
             return np.average([site_list[i].coords for i in indices], 
@@ -167,7 +189,8 @@ if __name__ == "__main__":
     from pymatgen.core.surface import generate_all_slabs
     mpr = MPRester()
     struct = mpr.get_structures('Cu')[0]
-    slabs = generate_all_slabs(struct, 1, 5.0, 5.0)
+    slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
+                               max_normal_search = 1)
     asf = AdsorbateSiteFinder(slabs[0])
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
