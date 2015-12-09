@@ -44,7 +44,7 @@ class AdsorbateSiteFinder(object):
             slab (Slab): slab object for which to find adsorbate
             sites
         """
-        self.slab = self.reorient_z(slab)
+        self.slab = reorient_z(slab)
 
     def find_surface_sites_by_height(self, window = 1.0):
         """
@@ -99,8 +99,8 @@ class AdsorbateSiteFinder(object):
                                                                   radius)]
         return list(set(surface_mesh))
 
-    def find_adsorption_sites(self, distance=1.0, 
-                              symm_reduce=True, near_reduce=True,
+    def find_adsorption_sites(self, distance = 1.0, put_inside = True,
+                              symm_reduce = True, near_reduce = True,
                               near_reduce_threshold = 1e-3):
         """
         """
@@ -121,12 +121,16 @@ class AdsorbateSiteFinder(object):
         for v in dt.vertices:
             # Add bridge sites at edges of delaunay
             for data in itertools.combinations(v, 2):
-                ads_sites += [self.ensemble_center(mesh, data, cartesian = True)]
+                if -1 not in data:
+                    ads_sites += [self.ensemble_center(mesh, data, cartesian = True)]
             # Add hollow sites at centers of delaunay
             ads_sites += [self.ensemble_center(mesh, v, cartesian = True)]
         import pdb; pdb.set_trace()
+        if put_inside:
+            coords = [put_coord_inside(self.slab.lattice, coord) 
+                      for coord in ads_sites]
         if near_reduce:
-            coords = self.near_reduce(ads_sites, 
+            coords = self.near_reduce(coords, 
                                       threshold=near_reduce_threshold)
         import pdb; pdb.set_trace()
         if symm_reduce:
@@ -136,20 +140,22 @@ class AdsorbateSiteFinder(object):
         return coords
 
     def symm_reduce(self, coords_set, cartesian = True,
-                    threshold = 1e-2):
+                    threshold = 0.1):
         """
         """
         surf_sg = SpacegroupAnalyzer(self.slab, 0.1)
         symm_ops = surf_sg.get_symmetry_operations(cartesian = cartesian)
         full_symm_ops = generate_full_symmops(symm_ops, tol=0.1)
         unique_coords = []
-        def redundant_surface_site(coord):
-            for op in full_symm_ops:
-                if in_coord_list(unique_coords, op.operate(coord)):
-                    return True
-            return False
+        coords_set = [[coord[0], coord[1], 0] for coord in coords_set]
+        import pdb; pdb.set_trace()
         for coords in coords_set:
-            if not redundant_surface_site(coords):
+            incoord = False
+            for op in full_symm_ops:
+                if in_coord_list(unique_coords, op.operate(coords)):
+                    incoord = True
+                    break
+            if not incoord:
                 unique_coords += [coords]
         return unique_coords
 
@@ -177,32 +183,52 @@ class AdsorbateSiteFinder(object):
             return np.average([site_list[i].frac_coords for i in indices], 
                               axis = 0)
 
-    def reorient_z(self, structure):
-        """
-        reorients a structure such that the z axis is concurrent with the 
-        normal to the A-B plane
-        """
-        struct = structure.copy()
-        a, b, c = structure.lattice.matrix
-        new_x = a / np.linalg.norm(a)
-        new_y = (b - np.dot(new_x, b) * new_x) / \
-                np.linalg.norm(b - np.dot(new_x, b) * new_x)
-        new_z = np.cross(new_x, new_y)
-        x, y, z = np.eye(3)
-        rot_matrix = np.array([np.dot(*el) for el in 
-                               itertools.product([x, y, z], 
-                                       [new_x, new_y, new_z])]).reshape(3,3)
-        rot_matrix = np.transpose(rot_matrix)
-        sop = SymmOp.from_rotation_and_translation(rot_matrix)
-        struct.apply_operation(sop)
-        return struct
+def reorient_z(structure):
+    """
+    reorients a structure such that the z axis is concurrent with the 
+    normal to the A-B plane
+    """
+    struct = structure.copy()
+    a, b, c = structure.lattice.matrix
+    new_x = a / np.linalg.norm(a)
+    new_y = (b - np.dot(new_x, b) * new_x) / \
+            np.linalg.norm(b - np.dot(new_x, b) * new_x)
+    new_z = np.cross(new_x, new_y)
+    x, y, z = np.eye(3)
+    rot_matrix = np.array([np.dot(*el) for el in 
+                           itertools.product([x, y, z], 
+                                   [new_x, new_y, new_z])]).reshape(3,3)
+    rot_matrix = np.transpose(rot_matrix)
+    sop = SymmOp.from_rotation_and_translation(rot_matrix)
+    struct.apply_operation(sop)
+    return struct
+
+def frac_to_cart(lattice, frac_coord):
+    """
+    converts fractional coordinates to cartesian
+    """
+    return np.dot(np.transpose(lattice.matrix), frac_coord)
+
+def cart_to_frac(lattice, cart_coord):
+    """
+    converts cartesian coordinates to fractional
+    """
+    return np.dot(np.linalg.inv(np.transpose(lattice.matrix)), cart_coord)
+
+def put_coord_inside(lattice, cart_coordinate):
+    """
+    converts a cartesian coordinate such that it is inside the unit cell.
+    This assists with the symmetry and near reduction algorithms.
+    """
+    fc = cart_to_frac(lattice, cart_coordinate)
+    return frac_to_cart(lattice, [c - np.floor(c) for c in fc])
 
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
     mpr = MPRester()
     struct = mpr.get_structures('Cu')[0]
-    slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
+    slabs = generate_all_slabs(struct, 1, 1.0, 5.0, 
                                max_normal_search = 1)
     asf = AdsorbateSiteFinder(slabs[0])
 
