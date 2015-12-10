@@ -22,9 +22,14 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import generate_full_symmops
 from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
 from ase.visualize import view
-from pymatgen.io.ase import AseAtomsAdaptor
+from pymatgen.core.sites import PeriodicSite
 
-aaa = AseAtomsAdaptor()
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+fig = plt.figure()
+ax = fig.add_subplot(111)
+
 __author__ = "Joseph Montoya"
 __copyright__ = "Copyright 2015, The Materials Project"
 __version__ = "1.0"
@@ -67,7 +72,7 @@ class AdsorbateSiteFinder(object):
         # Determine the window threshold in fractional coordinates
         c_window = window / np.linalg.norm(self.slab.lattice.matrix[-1])
         highest_site_z = max([site.frac_coords[-1] for site in self.slab.sites])
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         return [site for site in self.slab.sites 
                 if site.frac_coords[-1] >= highest_site_z - c_window]
 
@@ -106,7 +111,7 @@ class AdsorbateSiteFinder(object):
                                                                   radius)]
         return list(set(surface_mesh))
 
-    def find_adsorption_sites(self, distance = 1.0, put_inside = True,
+    def find_adsorption_sites(self, distance = 2.0, put_inside = True,
                               symm_reduce = True, near_reduce = True,
                               near_reduce_threshold = 1e-3):
         """
@@ -124,7 +129,7 @@ class AdsorbateSiteFinder(object):
         # Get bridge sites via DelaunayTri of extended surface mesh
         mesh = self.get_extended_surface_mesh()
         #import pdb; pdb.set_trace()
-        dt = DelaunayTri([m.frac_coords[:2] for m in mesh])
+        dt = DelaunayTri([m.coords[:2] for m in mesh])
 
         for v in dt.vertices:
             # Add bridge sites at edges of delaunay
@@ -134,18 +139,18 @@ class AdsorbateSiteFinder(object):
                                                        cartesian = True)]
             # Add hollow sites at centers of delaunay
                 ads_sites += [self.ensemble_center(mesh, v, cartesian = True)]
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         if put_inside:
             ads_sites = [put_coord_inside(self.slab.lattice, coord) 
                          for coord in ads_sites]
         if near_reduce:
             ads_sites = self.near_reduce(ads_sites, 
                                          threshold=near_reduce_threshold)
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         if symm_reduce:
             ads_sites = self.symm_reduce(ads_sites)
-
-        import pdb; pdb.set_trace()
+        ads_sites = [ads_site + dist_vec for ads_site in ads_sites]
+        #import pdb; pdb.set_trace()
         return ads_sites
 
     def symm_reduce(self, coords_set, cartesian = True,
@@ -154,10 +159,10 @@ class AdsorbateSiteFinder(object):
         """
         surf_sg = SpacegroupAnalyzer(self.slab, 0.1)
         symm_ops = surf_sg.get_symmetry_operations(cartesian = cartesian)
-        full_symm_ops = generate_full_symmops_pbc(symm_ops, tol=0.1)
+        full_symm_ops = generate_full_symmops(symm_ops, tol=0.1, max_recursion_depth=20)
         unique_coords = []
         # coords_set = [[coord[0], coord[1], 0] for coord in coords_set]
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         for coords in coords_set:
             incoord = False
             for op in full_symm_ops:
@@ -192,24 +197,48 @@ class AdsorbateSiteFinder(object):
             return np.average([site_list[i].frac_coords for i in indices], 
                               axis = 0)
 
-    def add_adsorbate(self, ads_atom_list, ads_position_list, ads_coord):
+    def add_adsorbate(self, ads_atom_list, ads_position_list, ads_coord, 
+                      repeat = None):
         """
         Adds an adsorbate at a particular coordinate
         """
         struct = self.slab.copy()
+        if repeat:
+            struct.make_supercell(repeat)
         ads_position_list = np.array(ads_position_list)
         ads_coord = np.array(ads_coord)
-        for atom, position in ads_atom_list, ads_position_list:
-            str.append(atom, ads_coord + position, coords_are_cartesian = True)
+        for atom, position in zip(ads_atom_list, ads_position_list):
+            #import pdb; pdb.set_trace()
+            struct.append(atom, ads_coord + position, coords_are_cartesian = True)
 
         return struct
 
-def generate_adsorption_structures(slab, adsorbate, ads_position_list):
+def generate_adsorption_structures(slab, adsorbate, ads_position_list,
+                                   repeat = [1, 1, 1]):
     structs = []
     asf = AdsorbateSiteFinder(slab)
     for coords in asf.find_adsorption_sites():
-        structs += [asf.add_adsorbate(adsorbate, ads_position_list, coords)]
+        structs += [asf.add_adsorbate(adsorbate, ads_position_list, coords,
+                                      repeat = repeat)]
     return structs
+
+def repeat_unit_cell(structure, repeated):
+    """
+    Creates a structure with repeated unit cell
+    """
+    struct = structure.copy()
+    struct = structure.make_supercell(
+    sites = []
+    for disp in itertools.product(*[range(i) for i in repeated]):
+        for site in struct.sites:
+            new_coords = site.frac_coords + np.array(disp)
+            sites.append(PeriodicSite(site.species_and_occu,
+                                      new_coords,
+                                      struct._lattice,
+                                      properties = site.properties))
+    struct._sites = sites
+    return struct
+        
 
 def reorient_z(structure):
     """
@@ -269,7 +298,7 @@ def generate_full_symmops_pbc(symmops, lattice, cartesian = True):
             d = np.abs(a - m) < tol
             new_op = SymmOp(m)
             thresh = np.abs(cart_to_frac(lattice, new_op.tau)) > 2.0
-            if not np.any(thresh)
+            if not np.any(thresh):
                 if not np.any(np.all(np.all(d, axis=2), axis=1)):
                     return generate_full_symmops(symmops + [SymmOp(m)], tol)
 
@@ -290,4 +319,8 @@ if __name__ == "__main__":
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
     #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
-    structs = generate_adsorption_structures(slabs[0])
+    structs = generate_adsorption_structures(slabs[0], 'OH', [[0.0, 0.0, 0.0],
+                                                              [0.5, 0.5, 0.5]],
+                                                              repeat = [2, 2, 1])
+    from helper import pymatview
+    pymatview(structs)
