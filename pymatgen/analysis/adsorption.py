@@ -220,25 +220,7 @@ def generate_adsorption_structures(slab, adsorbate, ads_position_list,
     for coords in asf.find_adsorption_sites():
         structs += [asf.add_adsorbate(adsorbate, ads_position_list, coords,
                                       repeat = repeat)]
-    return structs
-
-def repeat_unit_cell(structure, repeated):
-    """
-    Creates a structure with repeated unit cell
-    """
-    struct = structure.copy()
-    struct = structure.make_supercell(
-    sites = []
-    for disp in itertools.product(*[range(i) for i in repeated]):
-        for site in struct.sites:
-            new_coords = site.frac_coords + np.array(disp)
-            sites.append(PeriodicSite(site.species_and_occu,
-                                      new_coords,
-                                      struct._lattice,
-                                      properties = site.properties))
-    struct._sites = sites
-    return struct
-        
+    return structs        
 
 def reorient_z(structure):
     """
@@ -319,7 +301,7 @@ if __name__ == "__main__":
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
     #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
-    structs = generate_adsorption_structures(slabs[0], 'OH', [[0.0, 0.0, 0.0],
+    structs = generate_adsorption_structures(slabs[1], 'OH', [[0.0, 0.0, 0.0],
                                                               [0.5, 0.5, 0.5]],
                                                               repeat = [2, 2, 1])
     from helper import pymatview
