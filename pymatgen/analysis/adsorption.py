@@ -21,7 +21,10 @@ from pymatgen.core.operations import SymmOp
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import generate_full_symmops
 from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
+from ase.visualize import view
+from pymatgen.io.ase import AseAtomsAdaptor
 
+aaa = AseAtomsAdaptor()
 __author__ = "Joseph Montoya"
 __copyright__ = "Copyright 2015, The Materials Project"
 __version__ = "1.0"
@@ -56,11 +59,15 @@ class AdsorbateSiteFinder(object):
             window (float): threshold in angstroms of distance from topmost
                 site in slab along the slab c-vector to include in surface 
                 site determination
+
+        Returns:
+            list of sites selected to be within a threshold of the highest
         """
+
         # Determine the window threshold in fractional coordinates
-        import pdb; pdb.set_trace()
         c_window = window / np.linalg.norm(self.slab.lattice.matrix[-1])
         highest_site_z = max([site.frac_coords[-1] for site in self.slab.sites])
+        import pdb; pdb.set_trace()
         return [site for site in self.slab.sites 
                 if site.frac_coords[-1] >= highest_site_z - c_window]
 
@@ -95,7 +102,7 @@ class AdsorbateSiteFinder(object):
         surface_mesh = []
         for site in surf_str.sites:
             surface_mesh += [site]
-            surface_mesh += [s[0] for s in surf_str.get_neighbors(site, 
+            surface_mesh += [s[0] for s in surf_str.get_neighbors(site,
                                                                   radius)]
         return list(set(surface_mesh))
 
@@ -105,6 +112,7 @@ class AdsorbateSiteFinder(object):
         """
         """
         # Find vector for distance normal to x-y plane
+        # TODO: check redundancy since slabs are reoriented now
         a, b, c = self.slab.lattice.matrix
         dist_vec = np.cross(a, b)
         dist_vec = distance * dist_vec / np.linalg.norm(dist_vec)
@@ -120,24 +128,25 @@ class AdsorbateSiteFinder(object):
 
         for v in dt.vertices:
             # Add bridge sites at edges of delaunay
-            for data in itertools.combinations(v, 2):
-                if -1 not in data:
-                    ads_sites += [self.ensemble_center(mesh, data, cartesian = True)]
+            if -1 not in v:
+                for data in itertools.combinations(v, 2):
+                    ads_sites += [self.ensemble_center(mesh, data, 
+                                                       cartesian = True)]
             # Add hollow sites at centers of delaunay
-            ads_sites += [self.ensemble_center(mesh, v, cartesian = True)]
+                ads_sites += [self.ensemble_center(mesh, v, cartesian = True)]
         import pdb; pdb.set_trace()
         if put_inside:
-            coords = [put_coord_inside(self.slab.lattice, coord) 
-                      for coord in ads_sites]
+            ads_sites = [put_coord_inside(self.slab.lattice, coord) 
+                         for coord in ads_sites]
         if near_reduce:
-            coords = self.near_reduce(coords, 
-                                      threshold=near_reduce_threshold)
+            ads_sites = self.near_reduce(ads_sites, 
+                                         threshold=near_reduce_threshold)
         import pdb; pdb.set_trace()
         if symm_reduce:
-            coords = self.symm_reduce(coords)
+            ads_sites = self.symm_reduce(ads_sites)
 
         import pdb; pdb.set_trace()
-        return coords
+        return ads_sites
 
     def symm_reduce(self, coords_set, cartesian = True,
                     threshold = 0.1):
@@ -145,9 +154,9 @@ class AdsorbateSiteFinder(object):
         """
         surf_sg = SpacegroupAnalyzer(self.slab, 0.1)
         symm_ops = surf_sg.get_symmetry_operations(cartesian = cartesian)
-        full_symm_ops = generate_full_symmops(symm_ops, tol=0.1)
+        full_symm_ops = generate_full_symmops_pbc(symm_ops, tol=0.1)
         unique_coords = []
-        coords_set = [[coord[0], coord[1], 0] for coord in coords_set]
+        # coords_set = [[coord[0], coord[1], 0] for coord in coords_set]
         import pdb; pdb.set_trace()
         for coords in coords_set:
             incoord = False
@@ -223,16 +232,35 @@ def put_coord_inside(lattice, cart_coordinate):
     fc = cart_to_frac(lattice, cart_coordinate)
     return frac_to_cart(lattice, [c - np.floor(c) for c in fc])
 
+def generate_full_symmops_pbc(symmops):
+    """
+    generates a full list of symmops without including translations
+    larger than one unit cell
+    """
+    # TODO: Finish this thing
+    a = [o.affine_matrix for o in symmops]
+
+    if len(symmops) > 300:
+        print "symmetry operations in infinite loop."
+
+    else:
+        for op1, op2 in itertools.product(symmops, symmops):
+            m = np.dot(op1.affine
+    return symmops
+
+
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
     mpr = MPRester()
     struct = mpr.get_structures('Cu')[0]
-    slabs = generate_all_slabs(struct, 1, 1.0, 5.0, 
+    sga = SpacegroupAnalyzer(struct, 0.1)
+    struct = sga.get_conventional_standard_structure()
+    slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
                                max_normal_search = 1)
     asf = AdsorbateSiteFinder(slabs[0])
 
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
-    sites = asf.find_adsorption_sites()
+    sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
 
