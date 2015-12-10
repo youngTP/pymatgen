@@ -192,6 +192,25 @@ class AdsorbateSiteFinder(object):
             return np.average([site_list[i].frac_coords for i in indices], 
                               axis = 0)
 
+    def add_adsorbate(self, ads_atom_list, ads_position_list, ads_coord):
+        """
+        Adds an adsorbate at a particular coordinate
+        """
+        struct = self.slab.copy()
+        ads_position_list = np.array(ads_position_list)
+        ads_coord = np.array(ads_coord)
+        for atom, position in ads_atom_list, ads_position_list:
+            str.append(atom, ads_coord + position, coords_are_cartesian = True)
+
+        return struct
+
+def generate_adsorption_structures(slab, adsorbate, ads_position_list):
+    structs = []
+    asf = AdsorbateSiteFinder(slab)
+    for coords in asf.find_adsorption_sites():
+        structs += [asf.add_adsorbate(adsorbate, ads_position_list, coords)]
+    return structs
+
 def reorient_z(structure):
     """
     reorients a structure such that the z axis is concurrent with the 
@@ -232,7 +251,7 @@ def put_coord_inside(lattice, cart_coordinate):
     fc = cart_to_frac(lattice, cart_coordinate)
     return frac_to_cart(lattice, [c - np.floor(c) for c in fc])
 
-def generate_full_symmops_pbc(symmops):
+def generate_full_symmops_pbc(symmops, lattice, cartesian = True):
     """
     generates a full list of symmops without including translations
     larger than one unit cell
@@ -241,11 +260,19 @@ def generate_full_symmops_pbc(symmops):
     a = [o.affine_matrix for o in symmops]
 
     if len(symmops) > 300:
-        print "symmetry operations in infinite loop."
-
+        logger.debug("Generation of symmetry operations in infinite loop.  " +
+                     "Possible error in initial operations or tolerance too "
+                     "low.")
     else:
         for op1, op2 in itertools.product(symmops, symmops):
-            m = np.dot(op1.affine
+            m = np.dot(op1.affine_matrix, op2.affine_matrix)
+            d = np.abs(a - m) < tol
+            new_op = SymmOp(m)
+            thresh = np.abs(cart_to_frac(lattice, new_op.tau)) > 2.0
+            if not np.any(thresh)
+                if not np.any(np.all(np.all(d, axis=2), axis=1)):
+                    return generate_full_symmops(symmops + [SymmOp(m)], tol)
+
     return symmops
 
 
@@ -262,5 +289,5 @@ if __name__ == "__main__":
 
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
-    sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
-
+    #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
+    structs = generate_adsorption_structures(slabs[0])
