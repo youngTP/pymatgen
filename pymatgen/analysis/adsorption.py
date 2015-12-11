@@ -21,7 +21,7 @@ from pymatgen.core.operations import SymmOp
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import generate_full_symmops
 from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
-from ase.visualize import view
+#from ase.visualize import view
 from pymatgen.core.sites import PeriodicSite
 
 import matplotlib
@@ -262,31 +262,6 @@ def put_coord_inside(lattice, cart_coordinate):
     fc = cart_to_frac(lattice, cart_coordinate)
     return frac_to_cart(lattice, [c - np.floor(c) for c in fc])
 
-def generate_full_symmops_pbc(symmops, lattice, cartesian = True):
-    """
-    generates a full list of symmops without including translations
-    larger than one unit cell
-    """
-    # TODO: Finish this thing
-    a = [o.affine_matrix for o in symmops]
-
-    if len(symmops) > 300:
-        logger.debug("Generation of symmetry operations in infinite loop.  " +
-                     "Possible error in initial operations or tolerance too "
-                     "low.")
-    else:
-        for op1, op2 in itertools.product(symmops, symmops):
-            m = np.dot(op1.affine_matrix, op2.affine_matrix)
-            d = np.abs(a - m) < tol
-            new_op = SymmOp(m)
-            thresh = np.abs(cart_to_frac(lattice, new_op.tau)) > 2.0
-            if not np.any(thresh):
-                if not np.any(np.all(np.all(d, axis=2), axis=1)):
-                    return generate_full_symmops(symmops + [SymmOp(m)], tol)
-
-    return symmops
-
-
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
@@ -304,5 +279,5 @@ if __name__ == "__main__":
     structs = generate_adsorption_structures(slabs[1], 'OH', [[0.0, 0.0, 0.0],
                                                               [0.5, 0.5, 0.5]],
                                                               repeat = [2, 2, 1])
-    from helper import pymatview
-    pymatview(structs)
+    # from helper import pymatview
+    # pymatview(structs)
