@@ -44,7 +44,7 @@ class AdsorbateSiteFinder(object):
     This class finds adsorbate sites on slabs
     """
 
-    def __init__(self, slab):
+    def __init__(self, slab, selective_dynamics = False):
         """
         Create an AdsorbateSiteFinder object.
 
@@ -53,6 +53,8 @@ class AdsorbateSiteFinder(object):
             sites
         """
         self.slab = reorient_z(slab)
+        if selective_dynamics:
+            self.slab.assign_selective_dynamics()
 
     def find_surface_sites_by_height(self, window = 1.0):
         """
@@ -73,8 +75,15 @@ class AdsorbateSiteFinder(object):
         c_window = window / np.linalg.norm(self.slab.lattice.matrix[-1])
         highest_site_z = max([site.frac_coords[-1] for site in self.slab.sites])
         #import pdb; pdb.set_trace()
+
         return [site for site in self.slab.sites 
                 if site.frac_coords[-1] >= highest_site_z - c_window]
+
+    def assign_site_properties(self):
+        surf_sites = find_surface_sites_by_height(self)
+        self.slab.site_properties['surface_properties'] = ['surface' if site in surf_sites
+                                                           else 'subsurface' for site in 
+                                                           self.slab.sites]
 
     def find_surface_sites_by_alpha(self, slab, alpha = None):
         """
@@ -210,17 +219,25 @@ class AdsorbateSiteFinder(object):
         for atom, position in zip(ads_atom_list, ads_position_list):
             #import pdb; pdb.set_trace()
             struct.append(atom, ads_coord + position, coords_are_cartesian = True)
-
+            if 'surface_properties' in struct.site_properties.keys():
+                struct.site_properties['surface_properties'].append(['adsorbate'])
         return struct
+        
+    def assign_selective_dynamics(self, struct):
+        surf_sites = self.slab.get_surface_sites_by_height()
+        sd_list = []
+        sd_list = [['True', 'True', 'True']  if site in surf_sites 
+                   else ['False', 'False', 'False'] for site in slab.sites]
 
-def generate_adsorption_structures(slab, adsorbate, ads_position_list,
-                                   repeat = [1, 1, 1]):
-    structs = []
-    asf = AdsorbateSiteFinder(slab)
-    for coords in asf.find_adsorption_sites():
-        structs += [asf.add_adsorbate(adsorbate, ads_position_list, coords,
+        self.slab.site_properties['selective_dynamics'] = sd_list
+
+    def generate_adsorption_structures(self, adsorbate, ads_position_list,
+                                       repeat = [1, 1, 1]):
+        structs = []
+        for coords in self.find_adsorption_sites():
+            structs += [self.add_adsorbate(adsorbate, ads_position_list, coords,
                                       repeat = repeat)]
-    return structs        
+        return structs
 
 def reorient_z(structure):
     """
@@ -266,18 +283,17 @@ if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
     mpr = MPRester()
-    struct = mpr.get_structures('Cu')[0]
+    struct = mpr.get_structures('Ag')[0]
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
     slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
                                max_normal_search = 1)
-    asf = AdsorbateSiteFinder(slabs[0])
+    asf = AdsorbateSiteFinder(slabs[0])#, selective_dynamics = True)
 
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
     #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
-    structs = generate_adsorption_structures(slabs[1], 'OH', [[0.0, 0.0, 0.0],
-                                                              [0.5, 0.5, 0.5]],
-                                                              repeat = [2, 2, 1])
+    structs = asf.generate_adsorption_structures('O', [[0.0, 0.0, 0.0]],
+                                                    repeat = [2, 2, 1])
     # from helper import pymatview
     # pymatview(structs)
