@@ -21,7 +21,6 @@ from pymatgen.core.operations import SymmOp
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import generate_full_symmops
 from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
-#from ase.visualize import view
 from pymatgen.core.sites import PeriodicSite
 
 import matplotlib
@@ -250,6 +249,8 @@ def reorient_z(structure):
     new_y = (b - np.dot(new_x, b) * new_x) / \
             np.linalg.norm(b - np.dot(new_x, b) * new_x)
     new_z = np.cross(new_x, new_y)
+    if np.dot(new_z, c) < 0.:
+        new_z = -new_z
     x, y, z = np.eye(3)
     rot_matrix = np.array([np.dot(*el) for el in 
                            itertools.product([x, y, z], 
@@ -288,7 +289,7 @@ if __name__ == "__main__":
     struct = sga.get_conventional_standard_structure()
     slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
                                max_normal_search = 1)
-    asf = AdsorbateSiteFinder(slabs[0])#, selective_dynamics = True)
+    asf = AdsorbateSiteFinder(slabs[2])#, selective_dynamics = True)
 
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
