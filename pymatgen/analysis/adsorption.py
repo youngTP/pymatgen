@@ -23,12 +23,6 @@ from pymatgen.symmetry.analyzer import generate_full_symmops
 from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
 from pymatgen.core.sites import PeriodicSite
 
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
-fig = plt.figure()
-ax = fig.add_subplot(111)
-
 __author__ = "Joseph Montoya"
 __copyright__ = "Copyright 2015, The Materials Project"
 __version__ = "1.0"
@@ -147,18 +141,15 @@ class AdsorbateSiteFinder(object):
                                                        cartesian = True)]
             # Add hollow sites at centers of delaunay
                 ads_sites += [self.ensemble_center(mesh, v, cartesian = True)]
-        #import pdb; pdb.set_trace()
         if put_inside:
             ads_sites = [put_coord_inside(self.slab.lattice, coord) 
                          for coord in ads_sites]
         if near_reduce:
             ads_sites = self.near_reduce(ads_sites, 
                                          threshold=near_reduce_threshold)
-        #import pdb; pdb.set_trace()
         if symm_reduce:
             ads_sites = self.symm_reduce(ads_sites)
         ads_sites = [ads_site + dist_vec for ads_site in ads_sites]
-        #import pdb; pdb.set_trace()
         return ads_sites
 
     def symm_reduce(self, coords_set, cartesian = True,
@@ -288,8 +279,9 @@ if __name__ == "__main__":
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
     slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
-                               max_normal_search = 1)
-    asf = AdsorbateSiteFinder(slabs[2])#, selective_dynamics = True)
+                               max_normal_search = 1,
+                               center_slab = True)
+    asf = AdsorbateSiteFinder(slabs[2], selective_dynamics = True)
 
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
