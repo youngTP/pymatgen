@@ -137,7 +137,6 @@ class AdsorbateSiteFinder(object):
         # Get bridge sites via DelaunayTri of extended surface mesh
         mesh = self.get_extended_surface_mesh()
         dt = DelaunayTri([m.coords[:2] for m in mesh])
-
         for v in dt.vertices:
             # Add bridge sites at edges of delaunay
             if -1 not in v:
@@ -158,12 +157,12 @@ class AdsorbateSiteFinder(object):
         return ads_sites
 
     def symm_reduce(self, coords_set, cartesian = True,
-                    threshold = 0.1):
+                    threshold = 0.1, mrd = 200):
         """
         """
         surf_sg = SpacegroupAnalyzer(self.slab, 0.1)
         symm_ops = surf_sg.get_symmetry_operations(cartesian = cartesian)
-        full_symm_ops = generate_full_symmops(symm_ops, tol=0.1, max_recursion_depth=20)
+        full_symm_ops = generate_full_symmops(symm_ops, tol=0.1, max_recursion_depth=mrd)
         unique_coords = []
         # coords_set = [[coord[0], coord[1], 0] for coord in coords_set]
         for coords in coords_set:
@@ -218,7 +217,6 @@ class AdsorbateSiteFinder(object):
                 struct = struct.copy(site_properties=site_props)
             if 'selective_dynamics' in struct.site_properties.keys():
                 struct = self.assign_selective_dynamics(struct)
-                import pdb; pdb.set_trace()
         return struct
         
     def assign_selective_dynamics(self, slab):
@@ -230,7 +228,11 @@ class AdsorbateSiteFinder(object):
         return slab.copy(site_properties = new_sp)
 
     def generate_adsorption_structures(self, adsorbate, ads_position_list,
-                                       repeat = [1, 1, 1]):
+                                       repeat = None, min_size = 5.0):
+        if repeat is None:
+            xrep = np.ceil(min_size / np.linalg.norm(self.slab.lattice.matrix[0]))
+            yrep = np.ceil(min_size / np.linalg.norm(self.slab.lattice.matrix[1]))
+            repeat = [xrep, yrep, 1]
         structs = []
         for coords in self.find_adsorption_sites():
             structs += [self.add_adsorbate(adsorbate, ads_position_list, coords,
@@ -283,7 +285,7 @@ if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
     mpr = MPRester()
-    struct = mpr.get_structures('Ag')[0]
+    struct = mpr.get_structures('mp-124')[0]
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
     slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
@@ -294,11 +296,13 @@ if __name__ == "__main__":
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
     #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
-    structs = asf.generate_adsorption_structures('O', [[0.0, 0.0, 0.0]],
-                                                    repeat = [2, 2, 1])
+    structs = asf.generate_adsorption_structures('O', [[0.0, 0.0, 0.0]])
+                                                    #repeat = [2, 2, 1])
+    '''
     from pymatgen.vis.structure_vtk import StructureVis
     sv = StructureVis()
     sv.set_structure(structs[0])
     sv.write_image()
+    '''
     # from helper import pymatview
     # pymatview(structs)
