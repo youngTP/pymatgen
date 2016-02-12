@@ -45,11 +45,13 @@ class AdsorbateSiteFinder(object):
             slab (Slab): slab object for which to find adsorbate
             sites
         """
-        self.slab = reorient_z(slab)
+        slab = self.assign_site_properties(slab)
         if selective_dynamics:
-            self.slab.assign_selective_dynamics()
+            slab = self.assign_selective_dynamics(slab)
 
-    def find_surface_sites_by_height(self, window = 1.0):
+        self.slab = reorient_z(slab)
+
+    def find_surface_sites_by_height(self, slab, window = 1.0):
         """
         This method finds surface sites by determining which sites are within
         a threshold value in height from the topmost site in a list of sites
@@ -65,18 +67,17 @@ class AdsorbateSiteFinder(object):
         """
 
         # Determine the window threshold in fractional coordinates
-        c_window = window / np.linalg.norm(self.slab.lattice.matrix[-1])
-        highest_site_z = max([site.frac_coords[-1] for site in self.slab.sites])
-        #import pdb; pdb.set_trace()
+        c_window = window / np.linalg.norm(slab.lattice.matrix[-1])
+        highest_site_z = max([site.frac_coords[-1] for site in slab.sites])
 
-        return [site for site in self.slab.sites 
+        return [site for site in slab.sites 
                 if site.frac_coords[-1] >= highest_site_z - c_window]
 
-    def assign_site_properties(self):
-        surf_sites = find_surface_sites_by_height(self)
-        self.slab.site_properties['surface_properties'] = ['surface' if site in surf_sites
+    def assign_site_properties(self, slab):
+        surf_sites = self.find_surface_sites_by_height(slab)
+        return slab.copy(site_properties = {'surface_properties': ['surface' if site in surf_sites
                                                            else 'subsurface' for site in 
-                                                           self.slab.sites]
+                                                           slab.sites]})
 
     def find_surface_sites_by_alpha(self, slab, alpha = None):
         """
@@ -99,19 +100,25 @@ class AdsorbateSiteFinder(object):
         mesh_string = '\n'.join([' '.join([str(j) for j in frac_coords]) 
                                  for frac_coords in mesh])
         ahull_string = subprocess.check_output(["hull", "-A"], stdin = mesh_string)
-        #import pdb; pdb.set_trace()
 
     def get_extended_surface_mesh(self, radius = 4.0, window = 1.0):
         """
         """
-        surf_sites = self.find_surface_sites_by_height()
-        surf_str = Structure.from_sites(surf_sites)
+        surf_str = Structure.from_sites(self.surface_sites)
         surface_mesh = []
         for site in surf_str.sites:
             surface_mesh += [site]
             surface_mesh += [s[0] for s in surf_str.get_neighbors(site,
                                                                   radius)]
         return list(set(surface_mesh))
+
+    @property
+    def surface_sites(self):
+        """
+        convenience method to return a list of surface sites
+        """
+        return [site for site in self.slab.sites 
+                if site.properties['surface_properties']=='surface']
 
     def find_adsorption_sites(self, distance = 2.0, put_inside = True,
                               symm_reduce = True, near_reduce = True,
@@ -126,11 +133,9 @@ class AdsorbateSiteFinder(object):
         if np.dot(dist_vec, c) < 0:
             dist_vec = -dist_vec
         # find on-top sites
-        surf_sites = self.find_surface_sites_by_height()
-        ads_sites = [s.coords for s in surf_sites]
+        ads_sites = [s.coords for s in self.surface_sites]
         # Get bridge sites via DelaunayTri of extended surface mesh
         mesh = self.get_extended_surface_mesh()
-        #import pdb; pdb.set_trace()
         dt = DelaunayTri([m.coords[:2] for m in mesh])
 
         for v in dt.vertices:
@@ -161,7 +166,6 @@ class AdsorbateSiteFinder(object):
         full_symm_ops = generate_full_symmops(symm_ops, tol=0.1, max_recursion_depth=20)
         unique_coords = []
         # coords_set = [[coord[0], coord[1], 0] for coord in coords_set]
-        # import pdb; pdb.set_trace()
         for coords in coords_set:
             incoord = False
             for op in full_symm_ops:
@@ -207,19 +211,23 @@ class AdsorbateSiteFinder(object):
         ads_position_list = np.array(ads_position_list)
         ads_coord = np.array(ads_coord)
         for atom, position in zip(ads_atom_list, ads_position_list):
-            #import pdb; pdb.set_trace()
             struct.append(atom, ads_coord + position, coords_are_cartesian = True)
+            site_props = {}
             if 'surface_properties' in struct.site_properties.keys():
-                struct.site_properties['surface_properties'].append(['adsorbate'])
+                site_props['surface_properties'] = struct.site_properties['surface_properties'][:-1] + ['adsorbate']
+                struct = struct.copy(site_properties=site_props)
+            if 'selective_dynamics' in struct.site_properties.keys():
+                struct = self.assign_selective_dynamics(struct)
+                import pdb; pdb.set_trace()
         return struct
         
-    def assign_selective_dynamics(self, struct):
-        surf_sites = self.slab.get_surface_sites_by_height()
+    def assign_selective_dynamics(self, slab):
         sd_list = []
-        sd_list = [['True', 'True', 'True']  if site in surf_sites 
-                   else ['False', 'False', 'False'] for site in slab.sites]
-
-        self.slab.site_properties['selective_dynamics'] = sd_list
+        sd_list = [['False', 'False', 'False']  if site.properties['surface_properties']=='subsurface' 
+                   else ['True', 'True', 'True'] for site in slab.sites]
+        new_sp = slab.site_properties
+        new_sp['selective_dynamics'] = sd_list
+        return slab.copy(site_properties = new_sp)
 
     def generate_adsorption_structures(self, adsorbate, ads_position_list,
                                        repeat = [1, 1, 1]):
@@ -288,5 +296,9 @@ if __name__ == "__main__":
     #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
     structs = asf.generate_adsorption_structures('O', [[0.0, 0.0, 0.0]],
                                                     repeat = [2, 2, 1])
+    from pymatgen.vis.structure_vtk import StructureVis
+    sv = StructureVis()
+    sv.set_structure(structs[0])
+    sv.write_image()
     # from helper import pymatview
     # pymatview(structs)
