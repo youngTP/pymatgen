@@ -3,7 +3,7 @@
 # Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 """
 This module provides classes used to enumerate surface sites
@@ -13,6 +13,8 @@ and to find adsorption sites on slabs
 import numpy as np
 from six.moves import range
 from pymatgen.core.structure import Structure
+import tempfile
+import sys
 import subprocess
 import itertools
 from pyhull.delaunay import DelaunayTri
@@ -37,7 +39,7 @@ class AdsorbateSiteFinder(object):
     This class finds adsorbate sites on slabs
     """
 
-    def __init__(self, slab, selective_dynamics = False):
+    def __init__(self, slab, selective_dynamics = False, alpha = None):
         """
         Create an AdsorbateSiteFinder object.
 
@@ -45,7 +47,7 @@ class AdsorbateSiteFinder(object):
             slab (Slab): slab object for which to find adsorbate
             sites
         """
-        slab = self.assign_site_properties(slab)
+        slab = self.assign_site_properties(slab, alpha = alpha)
         if selective_dynamics:
             slab = self.assign_selective_dynamics(slab)
 
@@ -73,8 +75,14 @@ class AdsorbateSiteFinder(object):
         return [site for site in slab.sites 
                 if site.frac_coords[-1] >= highest_site_z - c_window]
 
-    def assign_site_properties(self, slab):
-        surf_sites = self.find_surface_sites_by_height(slab)
+    def assign_site_properties(self, slab, alpha = None):
+        """
+        Assigns site properties.
+        """
+        if alpha is None:
+            surf_sites = self.find_surface_sites_by_height(slab)
+        else:
+            surf_sites = self.find_surface_sites_by_alpha(slab)
         return slab.copy(site_properties = {'surface_properties': ['surface' if site in surf_sites
                                                            else 'subsurface' for site in 
                                                            slab.sites]})
@@ -92,16 +100,28 @@ class AdsorbateSiteFinder(object):
         """
         # construct a mesh from slab repeated three times
         frac_coords = np.array([site.frac_coords for site in slab.sites])
+        average_z = np.average(frac_coords[:,-1])
         repeated = np.array([i + (0,) for i in 
                              itertools.product([-1,0,1], repeat=2)])
         mesh = [r + fc for r, fc in itertools.product(repeated,
                                                       frac_coords)]
         # convert mesh to input string for Clarkson hull
+        alpha_hull = get_alpha_shape(mesh)
+        import pdb; pdb.set_trace()
+        alpha_coords = np.reshape(alpha_hull, (np.shape(alpha_hull)[0]*3, 3))
+        surf_sites = [site for site in slab.sites
+                      if site.frac_coords in alpha_coords
+                      and site.frac_coords[-1] > average_z]
+        import pdb; pdb.set_trace()
+        return surf_sites
+
+        '''
         mesh_string = '\n'.join([' '.join([str(j) for j in frac_coords]) 
                                  for frac_coords in mesh])
         ahull_string = subprocess.check_output(["hull", "-A"], stdin = mesh_string)
+        '''
 
-    def get_extended_surface_mesh(self, radius = 4.0, window = 1.0):
+    def get_extended_surface_mesh(self, radius = 6.0, window = 1.0):
         """
         """
         surf_str = Structure.from_sites(self.surface_sites)
@@ -281,23 +301,61 @@ def put_coord_inside(lattice, cart_coordinate):
     fc = cart_to_frac(lattice, cart_coordinate)
     return frac_to_cart(lattice, [c - np.floor(c) for c in fc])
 
+def get_alpha_shape(points, alpha_value = 100.):
+    """
+    Function to get an alpha shape from points using Clarkson
+    code
+    """
+    import os
+    # TODO: put into pyhull?
+    # Write points to temp
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    # import pdb; pdb.set_trace()
+    for point in points:
+        tmpfile.write(' '.join(["{0:.7}".format(coord) for coord in point]) + '\n')
+    tmpfile.close()
+
+    # Run hull
+    hull_path = 'hull'
+    command = "%s -A < %s" % (hull_path, tmpfile.name)
+    print("Running command {}".format(command), file = sys.stderr)
+    retcode = subprocess.call(command, shell=True)
+    if retcode != 0:
+        print("Warning: bad retcode returned by hull. " \
+              "Retcode value: {}".format(retcode))
+    os.remove(tmpfile.name)
+    results_file = open("hout-alf")
+    results_file.next()
+    results_indices = [[int(i) for i in line.rstrip().split()]
+                       for line in results_file]
+    results_file.close()
+    os.remove(results_file.name)
+    return [(points[i], points[j], points[k]) for i,j,k in results_indices]
+
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
     mpr = MPRester()
-    struct = mpr.get_structures('mp-124')[0]
+    struct = mpr.get_structures('mp-33')[0]
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
-    slabs = generate_all_slabs(struct, 1, 5.0, 5.0, 
+    slabs = generate_all_slabs(struct, 1, 10.0, 10.0, 
                                max_normal_search = 1,
                                center_slab = True)
-    asf = AdsorbateSiteFinder(slabs[2], selective_dynamics = True)
+    '''
+    asf = AdsorbateSiteFinder(slabs[1], selective_dynamics = True)
 
     #surf_sites_height = asf.find_surface_sites_by_height(slabs[0])
     #surf_sites_alpha = asf.find_surface_sites_by_alpha(slabs[0])
     #sites = asf.find_adsorption_sites(near_reduce = False, put_inside = False)
     structs = asf.generate_adsorption_structures('O', [[0.0, 0.0, 0.0]])
                                                     #repeat = [2, 2, 1])
+    '''
+    structs = []
+    for slab in slabs:
+        asf = AdsorbateSiteFinder(slab, selective_dynamics = True, alpha = True)
+        structs += asf.generate_adsorption_structures('O', [[0.0, 0.0, 0.0]])
+    print(len(structs))
     '''
     from pymatgen.vis.structure_vtk import StructureVis
     sv = StructureVis()
