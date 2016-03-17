@@ -75,11 +75,19 @@ class AdsorbateSiteFinder(object):
         return [site for site in slab.sites 
                 if site.frac_coords[-1] >= highest_site_z - c_window]
 
+    def find_surface_sites_by_coordination(self, slab):
+        """
+        This method finds surface sites by testing the coordination against the
+        bulk coordination
+        """
+
     def assign_site_properties(self, slab, alpha = None):
         """
         Assigns site properties.
         """
-        if alpha is None:
+        if 'surface_properties' in slab.site_properties.keys():
+            return slab
+        elif alpha is None:
             surf_sites = self.find_surface_sites_by_height(slab)
         else:
             surf_sites = self.find_surface_sites_by_alpha(slab)
@@ -107,12 +115,12 @@ class AdsorbateSiteFinder(object):
                                                       frac_coords)]
         # convert mesh to input string for Clarkson hull
         alpha_hull = get_alpha_shape(mesh)
-        import pdb; pdb.set_trace()
+        # import ipdb; pdb.set_trace()
         alpha_coords = np.reshape(alpha_hull, (np.shape(alpha_hull)[0]*3, 3))
         surf_sites = [site for site in slab.sites
                       if site.frac_coords in alpha_coords
                       and site.frac_coords[-1] > average_z]
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         return surf_sites
 
         '''
@@ -241,8 +249,8 @@ class AdsorbateSiteFinder(object):
         
     def assign_selective_dynamics(self, slab):
         sd_list = []
-        sd_list = [['False', 'False', 'False']  if site.properties['surface_properties']=='subsurface' 
-                   else ['True', 'True', 'True'] for site in slab.sites]
+        sd_list = [[False, False, False]  if site.properties['surface_properties']=='subsurface' 
+                   else [True, True, True] for site in slab.sites]
         new_sp = slab.site_properties
         new_sp['selective_dynamics'] = sd_list
         return slab.copy(site_properties = new_sp)
@@ -332,16 +340,44 @@ def get_alpha_shape(points, alpha_value = 100.):
     os.remove(results_file.name)
     return [(points[i], points[j], points[k]) for i,j,k in results_indices]
 
+def generate_decorated_slabs(structure):
+    """
+    This is a modification of the slab generation method
+    that adds a few properties useful to adsorbate generation
+    """
+    vcf_bulk = VoronoiCoordFinder(structure)
+    bulk_coords = [vcf_bulk.get_coordination_number(n)
+                   for n in range(len(structure))]
+    struct = structure.copy(site_properties = {'bulk_coordinations':bulk_coords})
+    slabs = generate_all_slabs(struct, 1, 10.0, 10.0,
+                               max_normal_search = 1,
+                               center_slab = True)
+    new_slabs = []
+    for slab in slabs:
+        vcf_surface = VoronoiCoordFinder(slab)
+        surf_props = []
+        for n, site in enumerate(slab):
+            bulk_coord = slab.site_properties['bulk_coordinations'][n]
+            surf_coord = vcf_surface.get_coordination_number(n)
+            average_z = np.average(slab.frac_coords[:,-1])
+            if surf_coord != bulk_coord and site.frac_coords[-1] > average_z:
+                surf_props += ['surface']
+            else:
+                surf_props += ['subsurface']
+        new_site_properties = {'surface_properties':surf_props}
+        new_slabs += [slab.copy(site_properties=new_site_properties)]
+    return new_slabs
+
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     from pymatgen.core.surface import generate_all_slabs
+    from pymatgen.analysis.structure_analyzer import VoronoiCoordFinder
     mpr = MPRester()
     struct = mpr.get_structures('mp-33')[0]
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
-    slabs = generate_all_slabs(struct, 1, 10.0, 10.0, 
-                               max_normal_search = 1,
-                               center_slab = True)
+    vcf = VoronoiCoordFinder(struct)
+    slabs = generate_decorated_slabs(struct) #TODO make parameters
     '''
     asf = AdsorbateSiteFinder(slabs[1], selective_dynamics = True)
 
