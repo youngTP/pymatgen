@@ -1,15 +1,14 @@
 Change log
 ==========
 
-v3.3.5
+v3.5.0
 ------
-* StructureMatcher can now work with ignored species.
-* Added interpolation failure warnings and smooth tolerance for
-  scipy.interpolate.splrep in bandstructures (Tess).
-* Added DiffusionAnalyzer.get_framework_rms_plot.
-* Complete rewrite of Procar class to use ND array access and zero-based
-  indexing.
-* OrderParameters class for analysis of local structural features
-  (Nils Zimmermann).
-* Bug fixes for Procar, MPRester and SpaceGroup 64.
-* Added Github templates for contributing to pymatgen.
+* Chemical environment analysis package (David Waroquiers).
+* Piezoelectric property analysis (Shayam).
+* Cythonize certain expensive core functions. 5-10x speedup in large structure matching (Will Richards).
+* New NMR parsing functionality for Outcar (Xiaohui Qu).
+* Improved io.lammps (Kiran Mathews).
+* Update to spglib 1.9.2.
+* Element properties now return unitized float where possible.
+* Bug fix for get_primitive_standard affecting rhombohedral cells (important for band structures).
+* Vasprun.final_energy now returns corrected energy with warning if it is different from final electronic step.
