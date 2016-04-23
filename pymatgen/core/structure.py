@@ -1131,6 +1131,7 @@ class IStructure(SiteCollection, MSONable):
                 valid = True
                 new_coords = []
                 new_sp = []
+                new_props = []
                 for gsites, gfcoords, non_nbrs in zip(grouped_sites,
                                                       grouped_fcoords,
                                                       grouped_non_nbrs):
@@ -1168,6 +1169,7 @@ class IStructure(SiteCollection, MSONable):
                                 offset = new_fcoords[j] - coords
                                 coords += (offset - np.round(offset)) / (n + 2)
                             new_sp.append(gsites[inds[0]].species_and_occu)
+                            new_props.append(gsites[inds[0]].properties)
                             new_coords.append(coords)
 
                 if valid:

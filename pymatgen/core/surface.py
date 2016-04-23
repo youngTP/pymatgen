@@ -558,7 +558,6 @@ class SlabGenerator(object):
 
         slab = Structure(new_lattice, species * nlayers_slab, all_coords,
                          site_properties=props)
-
         scale_factor = self.slab_scale_factor
         # Whether or not to orthogonalize the structure
         if self.lll_reduce:
