@@ -24,6 +24,8 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import generate_full_symmops
 from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
 from pymatgen.core.sites import PeriodicSite
+from pymatgen.analysis.structure_analyzer import VoronoiCoordFinder
+from pymatgen.core.surface import generate_all_slabs
 
 __author__ = "Joseph Montoya"
 __copyright__ = "Copyright 2015, The Materials Project"
@@ -80,6 +82,7 @@ class AdsorbateSiteFinder(object):
         This method finds surface sites by testing the coordination against the
         bulk coordination
         """
+        pass
 
     def assign_site_properties(self, slab, alpha = None):
         """
@@ -346,19 +349,20 @@ def generate_decorated_slabs(structure):
     that adds a few properties useful to adsorbate generation
     """
     vcf_bulk = VoronoiCoordFinder(structure)
-    bulk_coords = [vcf_bulk.get_coordination_number(n)
+    bulk_coords = [len(vcf_bulk.get_coordinated_sites(n))
                    for n in range(len(structure))]
     struct = structure.copy(site_properties = {'bulk_coordinations':bulk_coords})
     slabs = generate_all_slabs(struct, 1, 10.0, 10.0,
                                max_normal_search = 1,
                                center_slab = True)
+    # import pdb; pdb.set_trace()
     new_slabs = []
     for slab in slabs:
         vcf_surface = VoronoiCoordFinder(slab)
         surf_props = []
         for n, site in enumerate(slab):
             bulk_coord = slab.site_properties['bulk_coordinations'][n]
-            surf_coord = vcf_surface.get_coordination_number(n)
+            surf_coord = len(vcf_surface.get_coordinated_sites(n))
             average_z = np.average(slab.frac_coords[:,-1])
             if surf_coord != bulk_coord and site.frac_coords[-1] > average_z:
                 surf_props += ['surface']
@@ -370,10 +374,8 @@ def generate_decorated_slabs(structure):
 
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
-    from pymatgen.core.surface import generate_all_slabs
-    from pymatgen.analysis.structure_analyzer import VoronoiCoordFinder
     mpr = MPRester()
-    struct = mpr.get_structures('mp-33')[0]
+    struct = mpr.get_structures('mp-2')[0]
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
     vcf = VoronoiCoordFinder(struct)
