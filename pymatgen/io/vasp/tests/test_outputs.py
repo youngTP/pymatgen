@@ -411,15 +411,14 @@ class OutcarTest(unittest.TestCase):
             self.assertAlmostEqual(outcar.born[0][1][2], -0.385)
             self.assertAlmostEqual(outcar.born[1][2][0], 0.36465)
 
-    def test_elastic_tensor(self):
+    def test_read_elastic_tensor(self):
         filepath = os.path.join(test_dir, "OUTCAR.total_tensor.Li2O.gz")
         outcar = Outcar(filepath)
+        outcar.read_elastic_tensor()
 
-        elastic_tensor = outcar.elastic_tensor
-
-        self.assertAlmostEqual(elastic_tensor[0][0], 1986.3391)
-        self.assertAlmostEqual(elastic_tensor[0][1], 187.8324)
-        self.assertAlmostEqual(elastic_tensor[3][3], 586.3034)
+        self.assertAlmostEqual(outcar.data["elastic_tensor"][0][0], 1986.3391)
+        self.assertAlmostEqual(outcar.data["elastic_tensor"][0][1], 187.8324)
+        self.assertAlmostEqual(outcar.data["elastic_tensor"][3][3], 586.3034)
 
     def test_core_state_eigen(self):
         filepath = os.path.join(test_dir, "OUTCAR.CL")
@@ -483,7 +482,6 @@ class OutcarTest(unittest.TestCase):
                 self.assertAlmostEqual(e1[k], e2[k], places=5)
         d1 = outcar.as_dict()
         self.assertIn("efg", d1)
-
 
 class BSVasprunTest(unittest.TestCase):
 
