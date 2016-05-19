@@ -26,6 +26,7 @@ except ImportError:
 import math
 import itertools
 import logging
+import warnings
 
 import numpy as np
 from scipy.spatial.distance import squareform
@@ -39,8 +40,10 @@ from pymatgen.core.lattice import Lattice
 from pymatgen.core.sites import PeriodicSite
 
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.symmetry.groups import SpaceGroup
 from pymatgen.util.coord_utils import in_coord_list
 from pymatgen.analysis.structure_matcher import StructureMatcher
+
 
 
 logger = logging.getLogger(__name__)
@@ -663,7 +666,7 @@ class SlabGenerator(object):
                                 c_ranges.add(c_range)
         return c_ranges
 
-    def get_slabs(self, bonds=None, tol=0.1, max_broken_bonds=0):
+    def get_slabs(self, bonds=None, tol=0.1, max_broken_bonds=0, symmetrize=False):
         """
         This method returns a list of slabs that are generated using the list of
         shift values from the method, _calculate_possible_shifts(). Before the
@@ -684,6 +687,8 @@ class SlabGenerator(object):
                 for the slab. Use this to limit # of slabs (some structures
                 may have a lot of slabs). Defaults to zero, which means no
                 defined bonds must be broken.
+            symmetrize (bool): Whether or not to ensure the surfaces of the
+                slabs are equivalent.
 
         Returns:
             ([Slab]) List of all possible terminations of a particular surface.
@@ -706,37 +711,101 @@ class SlabGenerator(object):
         # Further filters out any surfaces made that might be the same
         m = StructureMatcher(ltol=tol, stol=tol, primitive_cell=False,
                              scale=False)
-        slabs = [g[0] for g in m.group_structures(slabs)]
-        return sorted(slabs, key=lambda s: s.energy)
 
+        new_slabs = []
+        original_formula = str(self.parent.composition.reduced_formula)
+        for g in m.group_structures(slabs):
+            # For each unique termination, symmetrize the
+            # surfaces by removing sites from the bottom.
+            if symmetrize:
+                slab = self.symmetrize_slab(g[0])
+                if original_formula != str(slab.composition.reduced_formula):
+                    warnings.warn("WARNING: Stoichiometry is no longer the same "\
+                                  "due to symmetrization")
+                new_slabs.append(slab)
+            else:
+                new_slabs.append(g[0])
 
-class GetMillerIndices(object):
+        return sorted(new_slabs, key=lambda s: s.energy)
 
-    def __init__(self, structure, max_index):
+    def symmetrize_slab(self, slab, tol=1e-3):
 
         """
-        A class for obtaining a family of indices or
-            unique indices up to a certain max index.
-
-        Args:
-            structure (Structure): input structure.
-            max_index (int): The maximum index. For example, a max_index of 1
-                means that (100), (110), and (111) are returned for the cubic
-                structure. All other indices are equivalent to one of these.
+        This method checks whether or not the two surfaces of the slab are
+        equivalent. If the point group of the slab has an inversion symmetry (ie.
+        belong to one of the Laue groups), then it is assumed that the surfaces
+        should be equivalent. Otherwise, sites at the bottom of the slab will be
+        removed until the slab is symmetric. Note that this method should only be
+        limited to elemental structures as the removal of sites can destroy the
+        stoichiometry of the slab. For non-elemental structures, use is_polar().
+        Arg:
+            slab (Structure): A single slab structure
+            tol (float): Tolerance for SpaceGroupanalyzer.
+        Returns:
+            Slab (structure): A symmetrized Slab object.
         """
 
-        recp_lattice = structure.lattice.reciprocal_lattice_crystallographic
-        # Need to make sure recp lattice is big enough, otherwise symmetry
-        # determination will fail. We set the overall volume to 1.
-        recp_lattice = recp_lattice.scale(1)
-        recp = Structure(recp_lattice, ["H"], [[0, 0, 0]])
+        laue = ["-1", "2/m", "mmm", "4/m", "4/mmm",
+                "-3", "-3m", "6/m", "6/mmm", "m-3", "m-3m"]
 
-        analyzer = SpacegroupAnalyzer(recp, symprec=0.001)
-        symm_ops = analyzer.get_symmetry_operations()
+        sg = SpacegroupAnalyzer(slab, symprec=tol)
+        pg = sg.get_point_group()
 
-        self.structure = structure
-        self.max_index = max_index
-        self.symm_ops = symm_ops
+        if str(pg) in laue:
+            return slab
+        else:
+            asym = True
+
+            while asym or (len(slab) < len(self.parent)):
+
+                # Keep removing sites from the bottom one by one until both
+                # surfaces are symmetric or the number of sites removed has
+                # exceeded 10 percent of the original slab
+
+                c_dir = [site[2] for i, site in enumerate(slab.frac_coords)]
+
+                slab.remove_sites([c_dir.index(min(c_dir))])
+
+                # Check if the altered surface is symmetric
+
+                sg = SpacegroupAnalyzer(slab, symprec=tol)
+                pg = sg.get_point_group()
+
+                if str(pg) in laue:
+                    asym = False
+
+        if len(slab) < len(self.parent):
+            warnings.warn("Too many sites removed, please use a larger slab size.")
+
+        return slab
+
+
+
+def get_symmetrically_distinct_miller_indices(structure, max_index):
+    """
+    Returns all symmetrically distinct indices below a certain max-index for
+    a given structure. Analysis is based on the symmetry of the reciprocal
+    lattice of the structure.
+    Args:
+        structure (Structure): input structure.
+        max_index (int): The maximum index. For example, a max_index of 1
+            means that (100), (110), and (111) are returned for the cubic
+            structure. All other indices are equivalent to one of these.
+    """
+
+
+    recp_lattice = structure.lattice.reciprocal_lattice_crystallographic
+    # Need to make sure recp lattice is big enough, otherwise symmetry
+    # determination will fail. We set the overall volume to 1.
+    recp_lattice = recp_lattice.scale(1)
+    recp = Structure(recp_lattice, ["H"], [[0, 0, 0]])
+
+    analyzer = SpacegroupAnalyzer(recp, symprec=0.001)
+    symm_ops = analyzer.get_symmetry_operations()
+
+    self.structure = structure
+    self.max_index = max_index
+    self.symm_ops = symm_ops
 
     def is_already_analyzed(self, miller_index, unique_millers=[]):
 
@@ -814,7 +883,7 @@ class GetMillerIndices(object):
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
                        bonds=None, tol=1e-3, max_broken_bonds=0,
                        lll_reduce=False, center_slab=False, primitive=True,
-                       max_normal_search=None):
+                       max_normal_search=None, symmetrize=False):
     """
     A function that finds all different slabs up to a certain miller index.
     Slabs oriented under certain Miller indices that are equivalent to other
@@ -862,19 +931,22 @@ def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
             vector as normal as possible (within the search range) to the
             surface. A value of up to the max absolute Miller index is
             usually sufficient.
+        symmetrize (bool): Whether or not to ensure the surfaces of the
+            slabs are equivalent.
     """
     all_slabs = []
 
-    for miller in GetMillerIndices(structure, max_index).\
-            get_symmetrically_distinct_miller_indices():
+
+    for miller in get_symmetrically_distinct_miller_indices(structure, max_index):
         gen = SlabGenerator(structure, miller, min_slab_size,
                             min_vacuum_size, lll_reduce=lll_reduce,
                             center_slab=center_slab, primitive=primitive,
                             max_normal_search=max_normal_search)
-        slabs = gen.get_slabs(bonds=bonds, tol=tol,
+        slabs = gen.get_slabs(bonds=bonds, tol=tol, symmetrize=symmetrize,
                               max_broken_bonds=max_broken_bonds)
         if len(slabs) > 0:
             logger.debug("%s has %d slabs... " % (miller, len(slabs)))
             all_slabs.extend(slabs)
 
     return all_slabs
+
