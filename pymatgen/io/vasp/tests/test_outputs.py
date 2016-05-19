@@ -460,6 +460,7 @@ class OutcarTest(unittest.TestCase):
     def test_read_elastic_tensor(self):
         filepath = os.path.join(test_dir, "OUTCAR.total_tensor.Li2O.gz")
         outcar = Outcar(filepath)
+        outcar.read_elastic_tensor()
 
         outcar.read_elastic_tensor()
 
@@ -475,6 +476,7 @@ class OutcarTest(unittest.TestCase):
         self.assertAlmostEqual(outcar.data["piezo_tensor"][0][0], 0.52799)
         self.assertAlmostEqual(outcar.data["piezo_tensor"][1][3], 0.35998)
         self.assertAlmostEqual(outcar.data["piezo_tensor"][2][5], 0.35997)
+
 
     def test_core_state_eigen(self):
         filepath = os.path.join(test_dir, "OUTCAR.CL")
@@ -554,7 +556,6 @@ class OutcarTest(unittest.TestCase):
         for e1, e2 in zip(outcar.data["efg"][2:10], expected_efg):
             for k in e1.keys():
                 self.assertAlmostEqual(e1[k], e2[k], places=5)
-
 
 class BSVasprunTest(unittest.TestCase):
 

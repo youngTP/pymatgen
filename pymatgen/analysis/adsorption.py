@@ -38,7 +38,8 @@ __date__ = "December 2, 2015"
 
 class AdsorbateSiteFinder(object):
     """
-    This class finds adsorbate sites on slabs
+    This class finds adsorbate sites on slabs and generates
+    adsorbate structures
     """
 
     def __init__(self, slab, selective_dynamics = False, alpha = None):
@@ -82,7 +83,12 @@ class AdsorbateSiteFinder(object):
         This method finds surface sites by testing the coordination against the
         bulk coordination
         """
-        pass
+        if 'bulk_coordination' not in slab.site_properties:
+            raise ValueError("Input slabs must have bulk_coordination assigned."
+                             "Use adsorption.generate_decorated_slabs to assign.")
+        
+
+
 
     def assign_site_properties(self, slab, alpha = None):
         """
@@ -118,12 +124,10 @@ class AdsorbateSiteFinder(object):
                                                       frac_coords)]
         # convert mesh to input string for Clarkson hull
         alpha_hull = get_alpha_shape(mesh)
-        # import ipdb; pdb.set_trace()
         alpha_coords = np.reshape(alpha_hull, (np.shape(alpha_hull)[0]*3, 3))
         surf_sites = [site for site in slab.sites
                       if site.frac_coords in alpha_coords
                       and site.frac_coords[-1] > average_z]
-        # import pdb; pdb.set_trace()
         return surf_sites
 
         '''
@@ -206,7 +210,7 @@ class AdsorbateSiteFinder(object):
                 unique_coords += [coords]
         return unique_coords
 
-    def near_reduce(self, coords_set, threshold = 1e-3, pbc = True):
+    def near_reduce(self, coords_set, threshold = 1e-2, pbc = True):
         """
         Prunes coordinate set for coordinates that are within a certain threshold
         
@@ -321,7 +325,6 @@ def get_alpha_shape(points, alpha_value = 100.):
     # TODO: put into pyhull?
     # Write points to temp
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
-    # import pdb; pdb.set_trace()
     for point in points:
         tmpfile.write(' '.join(["{0:.7}".format(coord) for coord in point]) + '\n')
     tmpfile.close()
@@ -352,10 +355,9 @@ def generate_decorated_slabs(structure):
     bulk_coords = [len(vcf_bulk.get_coordinated_sites(n))
                    for n in range(len(structure))]
     struct = structure.copy(site_properties = {'bulk_coordinations':bulk_coords})
-    slabs = generate_all_slabs(struct, 1, 10.0, 10.0,
+    slabs = generate_all_slabs(struct, 1, 7.0, 12.0,
                                max_normal_search = 1,
                                center_slab = True)
-    # import pdb; pdb.set_trace()
     new_slabs = []
     for slab in slabs:
         vcf_surface = VoronoiCoordFinder(slab)
