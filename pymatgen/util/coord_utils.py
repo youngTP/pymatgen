@@ -22,9 +22,10 @@ __date__ = "Nov 27, 2011"
 import itertools
 import numpy as np
 import math
-import pymatgen.util.coord_utils_cython as cuc
+from . import coord_utils_cython as cuc
 
-#array size threshold for looping instead of broadcasting
+
+# array size threshold for looping instead of broadcasting
 LOOP_THRESHOLD = 1e6
 
 
@@ -186,15 +187,6 @@ def pbc_diff(fcoords1, fcoords2):
     """
     fdist = np.subtract(fcoords1, fcoords2)
     return fdist - np.round(fdist)
-
-#create images, 2d array of all length 3 combinations of [-1,0,1]
-r = np.arange(-1, 2)
-arange = r[:, None] * np.array([1, 0, 0])[None, :]
-brange = r[:, None] * np.array([0, 1, 0])[None, :]
-crange = r[:, None] * np.array([0, 0, 1])[None, :]
-images = arange[:, None, None] + brange[None, :, None] + \
-    crange[None, None, :]
-images = images.reshape((27, 3))
 
 def pbc_shortest_vectors(lattice, fcoords1, fcoords2, mask=None, return_d2=False):
     """

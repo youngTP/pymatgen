@@ -420,7 +420,10 @@ class Vasprun(MSONable):
                                             p in self.potcar_symbols]
                 if tag == "calculation":
                     parsed_header = True
-                    ionic_steps.append(self._parse_calculation(elem))
+                    if not self.parameters.get("LCHIMAG", False):
+                        ionic_steps.append(self._parse_calculation(elem))
+                    else:
+                        ionic_steps.extend(self._parse_chemical_shift_calculation(elem))
                 elif parse_dos and tag == "dos":
                     try:
                         self.tdos, self.idos, self.pdos = self._parse_dos(elem)
@@ -574,6 +577,8 @@ class Vasprun(MSONable):
             return {}
         us = self.incar.get("LDAUU", self.parameters.get("LDAUU"))
         js = self.incar.get("LDAUJ", self.parameters.get("LDAUJ"))
+        if len(js) != len(us):
+            js = [0] * len(us)
         if len(us) == len(symbols):
             return {symbols[i]: us[i] - js[i] for i in range(len(symbols))}
         elif sum(us) == 0 and sum(js) == 0:
@@ -891,6 +896,7 @@ class Vasprun(MSONable):
             eigen = defaultdict(dict)
             for (spin, index), values in self.eigenvalues.items():
                 eigen[index][str(spin)] = values
+                neigen = len(values)
             vout["eigenvalues"] = eigen
             (gap, cbm, vbm, is_direct) = self.eigenvalue_band_properties
             vout.update(dict(bandgap=gap, cbm=cbm, vbm=vbm,
@@ -900,12 +906,12 @@ class Vasprun(MSONable):
                 peigen = []
                 for i in range(len(eigen)):
                     peigen.append({})
-                    for spin in eigen[i].keys():
-                        peigen[i][spin] = []
-                        for j in range(len(eigen[i][spin])):
-                            peigen[i][spin].append({})
                 for (spin, kpoint_index, band_index, ion_index, orbital), \
                         value in self.projected_eigenvalues.items():
+                    if str(spin) not in peigen[kpoint_index]:
+                        peigen[kpoint_index][str(spin)] = []
+                        for i in range(neigen):
+                            peigen[kpoint_index][str(spin)].append({})
                     beigen = peigen[kpoint_index][str(spin)][band_index]
                     if orbital not in beigen:
                         beigen[orbital] = [0.0] * nsites
@@ -957,6 +963,8 @@ class Vasprun(MSONable):
             except ValueError as e:
                 if symbol == "X":
                     return "Xe"
+                elif symbol == "r":
+                    return "Zr"
                 raise e
 
         elem.clear()
@@ -1008,6 +1016,40 @@ class Vasprun(MSONable):
         elem.clear()
         return [e[0] for e in imag], \
                [e[1:] for e in real], [e[1:] for e in imag]
+
+
+    def _parse_chemical_shift_calculation(self, elem):
+        calculation = []
+        istep = {}
+        try:
+            s = self._parse_structure(elem.find("structure"))
+        except AttributeError:  # not all calculations have a structure
+            s = None
+            pass
+        for va in elem.findall("varray"):
+            istep[va.attrib["name"]] = _parse_varray(va)
+        istep["structure"] = s
+        istep["electronic_steps"] = []
+        calculation.append(istep)
+        for scstep in elem.findall("scstep"):
+            try:
+                d = {i.attrib["name"]: _vasprun_float(i.text)
+                     for i in scstep.find("energy").findall("i")}
+                cur_ene = d['e_fr_energy']
+                min_steps = 1 if len(calculation) >= 1 else self.parameters.get("NELMIN", 5)
+                if len(calculation[-1]["electronic_steps"]) <= min_steps:
+                    calculation[-1]["electronic_steps"].append(d)
+                else:
+                    last_ene = calculation[-1]["electronic_steps"][-1]["e_fr_energy"]
+                    if abs(cur_ene - last_ene) < 1.0:
+                        calculation[-1]["electronic_steps"].append(d)
+                    else:
+                        calculation.append({"electronic_steps": [d]})
+            except AttributeError:  # not all calculations have an energy
+                pass
+        calculation[-1].update(calculation[-1]["electronic_steps"][-1])
+        return calculation
+
 
     def _parse_calculation(self, elem):
         try:
@@ -1077,8 +1119,7 @@ class Vasprun(MSONable):
     def _parse_eigen(self, elem):
         eigenvalues = {}
         for s in elem.find("array").find("set").findall("set"):
-            spin = Spin.up if s.attrib["comment"] == "spin 1" else \
-                Spin.down
+            spin = Spin.up if s.attrib["comment"] == "spin 1" else Spin.down
             for i, ss in enumerate(s.findall("set")):
                 eigenvalues[(spin, i)] = _parse_varray(ss)
         elem.clear()
@@ -1088,8 +1129,7 @@ class Vasprun(MSONable):
         root = elem.find("array").find("set")
         proj_eigen = {}
         for s in root.findall("set"):
-            spin = Spin.up if s.attrib["comment"] == "spin1" else \
-                Spin.down
+            spin = int(re.match("spin(\d+)", s.attrib["comment"]).group(1))
             for kpt, ss in enumerate(s.findall("set")):
                 for band, sss in enumerate(ss.findall("set")):
                     for atom, data in enumerate(_parse_varray(sss)):
@@ -1221,6 +1261,7 @@ class BSVasprun(Vasprun):
             eigen = defaultdict(dict)
             for (spin, index), values in self.eigenvalues.items():
                 eigen[index][str(spin)] = values
+                neigen = len(values)
             vout["eigenvalues"] = eigen
             (gap, cbm, vbm, is_direct) = self.eigenvalue_band_properties
             vout.update(dict(bandgap=gap, cbm=cbm, vbm=vbm,
@@ -1230,17 +1271,18 @@ class BSVasprun(Vasprun):
                 peigen = []
                 for i in range(len(eigen)):
                     peigen.append({})
-                    for spin in eigen[i].keys():
-                        peigen[i][spin] = []
-                        for j in range(len(eigen[i][spin])):
-                            peigen[i][spin].append({})
                 for (spin, kpoint_index, band_index, ion_index, orbital), \
                         value in self.projected_eigenvalues.items():
+                    if str(spin) not in peigen[kpoint_index]:
+                        peigen[kpoint_index][str(spin)] = []
+                        for i in range(neigen):
+                            peigen[kpoint_index][str(spin)].append({})
                     beigen = peigen[kpoint_index][str(spin)][band_index]
                     if orbital not in beigen:
                         beigen[orbital] = [0.0] * nsites
                     beigen[orbital][ion_index] = value
                 vout['projected_eigenvalues'] = peigen
+
         d['output'] = vout
         return jsanitize(d, strict=True)
 
@@ -1324,8 +1366,8 @@ class Outcar(MSONable):
 
         time_patt = re.compile("\((sec|kb)\)")
         efermi_patt = re.compile("E-fermi\s*:\s*(\S+)")
-        nelect_patt = re.compile("number of electron\s+(\S+)\s+"
-                                 "magnetization\s+(\S+)")
+        nelect_patt = re.compile("number of electron\s+(\S+)\s+magnetization")
+        mag_patt = re.compile("number of electron\s+\S+\s+magnetization\s+(\S+)")
         etensor_patt = re.compile("[X-Z][X-Z]+\s+-?\d+")
         toten_pattern = re.compile("free  energy   TOTEN\s+=\s+([\d\-\.]+)")
 
@@ -1354,7 +1396,9 @@ class Outcar(MSONable):
                 m = nelect_patt.search(clean)
                 if m:
                     nelect = float(m.group(1))
-                    total_mag = float(m.group(2))
+                m = mag_patt.search(clean)
+                if m:
+                    total_mag = float(m.group(1))
                 if total_energy is None:
                     m = toten_pattern.search(clean)
                     if m:
@@ -1522,16 +1566,26 @@ class Outcar(MSONable):
                          r"\s+EXCLUDING G=0 CONTRIBUTION\s+INCLUDING G=0 CONTRIBUTION\s+" \
                          r"\s+-{20,}\s+-{20,}\s+" \
                          r"\s+ATOM\s+ISO_SHIFT\s+SPAN\s+SKEW\s+ISO_SHIFT\s+SPAN\s+SKEW\s+" \
-                         r".+?\(absolute, valence and core\)\s+$"
+                         "-{50,}\s*$"
+        first_part_pattern = r"\s+\(absolute, valence only\)\s+$"
+        swallon_valence_body_pattern = r".+?\(absolute, valence and core\)\s+$"
         row_pattern = r"\d+(?:\s+[-]?\d+\.\d+){3}\s+" + r'\s+'.join([r"([-]?\d+\.\d+)"] * 3)
         footer_pattern = "-{50,}\s*$"
-        cs_table = self.read_table_pattern(header_pattern, row_pattern, footer_pattern,
-                                           postprocess=float, last_one_only=True)
-        cs = []
-        for sigma_iso, omega, kappa in cs_table:
-            tensor = NMRChemicalShiftNotation.from_maryland_notation(sigma_iso, omega, kappa)
-            cs.append(tensor)
-        self.data["chemical_shifts"] = tuple(cs)
+        h1 = header_pattern + first_part_pattern
+        cs_valence_only = self.read_table_pattern(h1, row_pattern, footer_pattern,
+                                                  postprocess=float, last_one_only=True)
+        h2 = header_pattern + swallon_valence_body_pattern
+        cs_valence_and_core = self.read_table_pattern(h2, row_pattern, footer_pattern,
+                                                      postprocess=float, last_one_only=True)
+        all_cs = {}
+        for name, cs_table in [["valence_only", cs_valence_only],
+                               ["valence_and_core", cs_valence_and_core]]:
+            cs = []
+            for sigma_iso, omega, kappa in cs_table:
+                tensor = NMRChemicalShiftNotation.from_maryland_notation(sigma_iso, omega, kappa)
+                cs.append(tensor)
+            all_cs[name] = tuple(cs)
+        self.data["chemical_shifts"] = all_cs
 
     def read_nmr_efg(self):
         """
@@ -2007,13 +2061,25 @@ class Outcar(MSONable):
             line = foutcar.readline()
             while line != "":
                 line = foutcar.readline()
-                if "NIONS =" in line:
+                if "NIONS =" in line:   
                     natom = int(line.split("NIONS =")[1])
                     cl = [defaultdict(list) for i in range(natom)]
                 if "the core state eigen" in line:
-                    for iat in range(natom):
+                    iat = -1
+                    while line != "":
                         line = foutcar.readline()
-                        data = line.split()[1:]
+                        # don't know number of lines to parse without knowing
+                        # specific species, so stop parsing when we reach
+                        # "E-fermi" instead
+                        if "E-fermi" in line:
+                            break
+                        data = line.split()
+                        # data will contain odd number of elements if it is
+                        # the start of a new entry, or even number of elements
+                        # if it continues the previous entry
+                        if len(data) % 2 == 1:
+                            iat += 1 # started parsing a new ion
+                            data = data[1:] # remove element with ion number
                         for i in range(0, len(data), 2):
                             cl[iat][data[i]].append(float(data[i + 1]))
         return cl

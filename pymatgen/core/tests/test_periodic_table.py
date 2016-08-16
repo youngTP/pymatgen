@@ -7,12 +7,13 @@ from __future__ import division, unicode_literals
 import unittest2 as unittest
 import pickle
 
+from pymatgen.util.testing import PymatgenTest
 from pymatgen.core.periodic_table import Element, Specie, DummySpecie, get_el_sp
 from pymatgen.core.composition import Composition
 from copy import deepcopy
 
 
-class ElementTestCase(unittest.TestCase):
+class ElementTestCase(PymatgenTest):
 
     def test_init(self):
         self.assertEqual("Fe", Element("Fe").symbol, "Fe test failed")
@@ -22,7 +23,7 @@ class ElementTestCase(unittest.TestCase):
         for sym in fictional_symbols:
             self.assertRaises(ValueError, Element, sym)
 
-        #Test caching
+        # Test caching
         self.assertEqual(id(Element("Fe")), id(Element("Fe")))
 
     def test_dict(self):
@@ -134,11 +135,15 @@ class ElementTestCase(unittest.TestCase):
         o = pickle.dumps(el1)
         self.assertEqual(el1, pickle.loads(o))
 
+        #Test all elements up to Uranium
+        for i in range(1, 93):
+            self.serialize_with_pickle(Element.from_Z(i), test_eq=True)
+
     def test_print_periodic_table(self):
         Element.print_periodic_table()
 
 
-class SpecieTestCase(unittest.TestCase):
+class SpecieTestCase(PymatgenTest):
 
     def setUp(self):
         self.specie1 = Specie.from_string("Fe2+")
@@ -156,6 +161,7 @@ class SpecieTestCase(unittest.TestCase):
     def test_ionic_radius(self):
         self.assertEqual(self.specie2.ionic_radius, 78.5 / 100)
         self.assertEqual(self.specie3.ionic_radius, 92 / 100)
+        self.assertAlmostEqual(Specie("Mn", 4).ionic_radius, 0.67)
 
     def test_eq(self):
         self.assertEqual(self.specie1, self.specie3,
@@ -184,6 +190,8 @@ class SpecieTestCase(unittest.TestCase):
 
     def test_pickle(self):
         self.assertEqual(self.specie1, pickle.loads(pickle.dumps(self.specie1)))
+        for i in range(1, 5):
+            self.serialize_with_pickle(getattr(self, "specie%d" % i) , test_eq=True)
 
     def test_get_crystal_field_spin(self):
         self.assertEqual(Specie("Fe", 2).get_crystal_field_spin(), 4)
