@@ -306,7 +306,6 @@ class MillerIndexFinderTests(PymatgenTest):
                             ["H", "He"], [[0, 0, 0], [0.1, 0.2, 0.3]])
         self.graphite = self.get_structure("Graphite")
 
-
     def test_get_symmetrically_distinct_miller_indices(self):
 
         # Tests to see if the function obtains the known number of unique slabs
@@ -316,7 +315,6 @@ class MillerIndexFinderTests(PymatgenTest):
         indices = GetMillerIndices(self.cscl, 2).\
             get_symmetrically_distinct_miller_indices()
         self.assertEqual(len(indices), 6)
-
 
         self.assertEqual(len(get_symmetrically_distinct_miller_indices(self.lifepo4, 1)), 7)
 

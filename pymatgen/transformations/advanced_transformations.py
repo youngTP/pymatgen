@@ -782,3 +782,38 @@ class DopingTransformation(AbstractTransformation):
     @property
     def is_one_to_many(self):
         return True
+
+
+class SlabTransformation(AbstractTransformation):
+    """
+    Creates a slab from a structure.
+
+    Args:
+        miller_index
+        min_slab_size
+        min_vacuum_size
+        shift
+    """
+    def __init__(self, miller_index, min_slab_size, 
+                 min_vacuum_size, shift, slab_gen_config=None):
+        """
+        """
+        self.miller_index = miller_index
+        self.min_slab_size = min_slab_size
+        self.min_vacuum_size = min_vacuum_size
+        self.shift = shift
+        self.slab_gen_config = slab_gen_config
+    
+    def apply_transformation(self, structure):
+        sg = SlabGenerator(structure, self.miller_index, self.min_slab_size,
+                           self.min_vacuum_size, **slab_gen_config)
+        slab = sg.get_slab(shift = self.shift)
+        return slab
+
+    @property
+    def inverse(self):
+        return None
+
+    @property
+    def is_one_to_many(self):
+        return None
