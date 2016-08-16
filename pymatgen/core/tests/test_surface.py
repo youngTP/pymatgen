@@ -10,7 +10,7 @@ import numpy as np
 from pymatgen.core.structure import Structure
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.surface import Slab, SlabGenerator, generate_all_slabs, \
-    GetMillerIndices
+    get_symmetrically_distinct_miller_indices
 from pymatgen.symmetry.groups import SpaceGroup
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.testing import PymatgenTest
@@ -184,7 +184,7 @@ class SlabGeneratorTest(PymatgenTest):
             while miller == (0, 0, 0):
                 miller = (random.randint(0, 6), random.randint(0, 6),
                           random.randint(0, 6))
-            gen = SlabGenerator(s, miller, 10, 10, primitive=False)
+            gen = SlabGenerator(s, miller, 10, 10)
             a, b, c = gen.oriented_unit_cell.lattice.matrix
             self.assertAlmostEqual(np.dot(a, gen._normal), 0)
             self.assertAlmostEqual(np.dot(b, gen._normal), 0)
@@ -311,28 +311,23 @@ class MillerIndexFinderTests(PymatgenTest):
         # Tests to see if the function obtains the known number of unique slabs
 
         indices = get_symmetrically_distinct_miller_indices(self.cscl, 1)
-
         self.assertEqual(len(indices), 3)
-        indices = GetMillerIndices(self.cscl, 2).\
-            get_symmetrically_distinct_miller_indices()
+        indices = get_symmetrically_distinct_miller_indices(self.cscl, 2)
         self.assertEqual(len(indices), 6)
 
         self.assertEqual(len(get_symmetrically_distinct_miller_indices(self.lifepo4, 1)), 7)
 
         # The TeI P-1 structure should have 13 unique millers (only inversion
         # symmetry eliminates pairs)
-        indices = GetMillerIndices(self.tei, 1).\
-            get_symmetrically_distinct_miller_indices()
+        indices = get_symmetrically_distinct_miller_indices(self.tei, 1)
         self.assertEqual(len(indices), 13)
 
         # P1 and P-1 should have the same # of miller indices since surfaces
         # always have inversion symmetry.
-        indices = GetMillerIndices(self.p1, 1).\
-            get_symmetrically_distinct_miller_indices()
+        indices = get_symmetrically_distinct_miller_indices(self.p1, 1)
         self.assertEqual(len(indices), 13)
 
-        indices = GetMillerIndices(self.graphite, 2).\
-            get_symmetrically_distinct_miller_indices()
+        indices = get_symmetrically_distinct_miller_indices(self.graphite, 2)
         self.assertEqual(len(indices), 12)
 
     def test_generate_all_slabs(self):
@@ -364,9 +359,6 @@ class MillerIndexFinderTests(PymatgenTest):
         # in the (001) oriented unit cell
         slabs3 = generate_all_slabs(self.LiCoO2, 1, 10, 10,
                                     bonds={("Co", "O"): 3})
-        for i, s in enumerate(slabs3):
-            s.oriented_unit_cell.to(filename="LCOslab%s.cif" % (str(
-                s.miller_index)))
         self.assertEqual(len(slabs3), 1)
         mill = (0, 0, 1)
         for s in slabs3:

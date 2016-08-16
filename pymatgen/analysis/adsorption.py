@@ -234,7 +234,7 @@ class AdsorbateSiteFinder(object):
             return np.average([site_list[i].frac_coords for i in indices], 
                               axis = 0)
 
-    def add_adsorbate(self, ads_atom_list, ads_position_list, ads_coord, 
+    def add_adsorbate(self, molecule, ads_coord, 
                       repeat = None):
         """
         Adds an adsorbate at a particular coordinate
@@ -242,16 +242,16 @@ class AdsorbateSiteFinder(object):
         struct = self.slab.copy()
         if repeat:
             struct.make_supercell(repeat)
-        ads_position_list = np.array(ads_position_list)
-        ads_coord = np.array(ads_coord)
-        for atom, position in zip(ads_atom_list, ads_position_list):
-            struct.append(atom, ads_coord + position, coords_are_cartesian = True)
-            site_props = {}
-            if 'surface_properties' in struct.site_properties.keys():
-                site_props['surface_properties'] = struct.site_properties['surface_properties'][:-1] + ['adsorbate']
-                struct = struct.copy(site_properties=site_props)
-            if 'selective_dynamics' in struct.site_properties.keys():
-                struct = self.assign_selective_dynamics(struct)
+            # import pdb; pdb.set_trace()
+        if 'surface_properties' in struct.site_properties.keys():
+            molecule.add_site_property("surface_properties",
+                                       ["adsorbate"] * molecule.num_sites)
+        if 'selective_dynamics' in struct.site_properties.keys():
+            molecule.add_site_property("selective_dynamics",
+                                       [[True, True, True]] * molecule.num_sites)
+        for site in molecule:
+            struct.append(site.specie, ads_coord + site.coords, coords_are_cartesian = True,
+                          properties = site.properties)
         return struct
         
     def assign_selective_dynamics(self, slab):
@@ -262,15 +262,15 @@ class AdsorbateSiteFinder(object):
         new_sp['selective_dynamics'] = sd_list
         return slab.copy(site_properties = new_sp)
 
-    def generate_adsorption_structures(self, adsorbate, ads_position_list,
-                                       repeat = None, min_size = 5.0):
+    def generate_adsorption_structures(self, molecule, repeat = None, 
+                                       min_lw = 5.0):
         if repeat is None:
-            xrep = np.ceil(min_size / np.linalg.norm(self.slab.lattice.matrix[0]))
-            yrep = np.ceil(min_size / np.linalg.norm(self.slab.lattice.matrix[1]))
+            xrep = np.ceil(min_lw / np.linalg.norm(self.slab.lattice.matrix[0]))
+            yrep = np.ceil(min_lw / np.linalg.norm(self.slab.lattice.matrix[1]))
             repeat = [xrep, yrep, 1]
         structs = []
         for coords in self.find_adsorption_sites():
-            structs += [self.add_adsorbate(adsorbate, ads_position_list, coords,
+            structs += [self.add_adsorbate(molecule, coords,
                                       repeat = repeat)]
         return structs
 
@@ -346,7 +346,9 @@ def get_alpha_shape(points, alpha_value = 100.):
     os.remove(results_file.name)
     return [(points[i], points[j], points[k]) for i,j,k in results_indices]
 
-def generate_decorated_slabs(structure):
+def generate_decorated_slabs(structure, max_index=1, min_slab_size=5.0, 
+                             min_vacuum_size=10.0, max_normal_search=1,
+                             center_slab = True):
     """
     This is a modification of the slab generation method
     that adds a few properties useful to adsorbate generation
@@ -355,9 +357,9 @@ def generate_decorated_slabs(structure):
     bulk_coords = [len(vcf_bulk.get_coordinated_sites(n))
                    for n in range(len(structure))]
     struct = structure.copy(site_properties = {'bulk_coordinations':bulk_coords})
-    slabs = generate_all_slabs(struct, 1, 7.0, 12.0,
-                               max_normal_search = 1,
-                               center_slab = True)
+    slabs = generate_all_slabs(struct, max_index, min_slab_size, min_vacuum_size,
+                               max_normal_search = max_normal_search,
+                               center_slab = center_slab)
     new_slabs = []
     for slab in slabs:
         vcf_surface = VoronoiCoordFinder(slab)

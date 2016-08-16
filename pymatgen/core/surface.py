@@ -518,9 +518,6 @@ class SlabGenerator(object):
 
         self.oriented_unit_cell = Structure.from_sites(single,
                                                        to_unit_cell=True)
-        self.oriented_unit_cell.to(filename="LCO_111_before.cif")
-        if primitive:
-            self.oriented_unit_cell = _get_constrained_prim(single)
         self.parent = initial_structure
         self.lll_reduce = lll_reduce
         self.center_slab = center_slab
@@ -999,12 +996,7 @@ def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
     """
     all_slabs = []
 
-<<<<<<< master
     for miller in get_symmetrically_distinct_miller_indices(structure, max_index):
-=======
-    for miller in GetMillerIndices(structure, max_index).\
-            get_symmetrically_distinct_miller_indices():
->>>>>>> HEAD~29
         gen = SlabGenerator(structure, miller, min_slab_size,
                             min_vacuum_size, lll_reduce=lll_reduce,
                             center_slab=center_slab, primitive=primitive,
