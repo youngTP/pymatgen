@@ -822,21 +822,77 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
     symm_ops = get_recp_symmetry_operation(structure)
     unique_millers = []
 
-    def is_already_analyzed(miller_index):
-        for op in symm_ops:
+    def is_already_analyzed(self, miller_index, unique_millers=[]):
+
+        """
+        Creates a function that uses the symmetry operations in the
+        structure to find Miller indices that might give repetitive orientations
+
+        Args:
+            miller_index (tuple): Algorithm will find indices
+                equivalent to this index.
+            unique_millers (list): Algorithm will check if the
+                miller_index is equivalent to any indices in this list.
+        """
+
+        for op in self.symm_ops:
             if in_coord_list(unique_millers, op.operate(miller_index)):
                 return True
         return False
 
-    r = list(range(-max_index, max_index + 1))
-    r.reverse()
-    for miller in itertools.product(r, r, r):
-        if any([i != 0 for i in miller]):
-            d = abs(reduce(gcd, miller))
-            miller = tuple([int(i / d) for i in miller])
-            if not is_already_analyzed(miller):
-                unique_millers.append(miller)
-    return unique_millers
+    def get_symmetrically_distinct_miller_indices(self):
+
+        """
+        Returns all symmetrically distinct indices below a certain max-index for
+        a given structure. Analysis is based on the symmetry of the reciprocal
+        lattice of the structure.
+        """
+
+        unique_millers = []
+
+        r = list(range(-self.max_index, self.max_index + 1))
+        r.reverse()
+        for miller in itertools.product(r, r, r):
+            if any([i != 0 for i in miller]):
+                d = abs(reduce(gcd, miller))
+                miller = tuple([int(i / d) for i in miller])
+                if not self.is_already_analyzed(miller, unique_millers):
+                    unique_millers.append(miller)
+        return unique_millers
+
+    def get_symmetrically_equivalent_miller_indices(self, miller_index):
+        """
+        Returns all symmetrically equivalent indices below a certain max-index for
+        a given structure. Analysis is based on the symmetry of the reciprocal
+        lattice of the structure.
+
+        Args:
+            structure (Structure): input structure.
+            miller_index (tuple): Designates the family of Miller indices to find.
+        """
+
+        equivalent_millers = [miller_index]
+        r = list(range(-self.max_index, self.max_index + 1))
+        r.reverse()
+
+        for miller in itertools.product(r, r, r):
+            # print miller
+            if miller[0] == miller_index[0] and \
+               miller[1] == miller_index[1] and \
+               miller[2] == miller_index[2]:
+
+                continue
+
+            if any([i != 0 for i in miller]):
+                d = abs(reduce(gcd, miller))
+                miller = tuple([int(i / d) for i in miller])
+                if in_coord_list(equivalent_millers, miller):
+                    continue
+                if self.is_already_analyzed(miller,
+                                            unique_millers=equivalent_millers):
+                    equivalent_millers.append(miller)
+
+        return equivalent_millers
 
 
 class GetMillerIndices(object):
