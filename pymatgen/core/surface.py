@@ -16,7 +16,6 @@ import logging
 import warnings
 
 import numpy as np
-from numpy.linalg import norm
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, fcluster
 
@@ -28,8 +27,7 @@ from pymatgen.core.lattice import Lattice
 from pymatgen.core.sites import PeriodicSite
 
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list_pbc, \
-    in_coord_list_pbc
+from pymatgen.util.coord_utils import in_coord_list
 from pymatgen.analysis.structure_matcher import StructureMatcher
 
 """
@@ -80,8 +78,7 @@ class Slab(Structure):
     def __init__(self, lattice, species, coords, miller_index,
                  oriented_unit_cell, shift, scale_factor,
                  validate_proximity=False, to_unit_cell=False,
-                 coords_are_cartesian=False, site_properties=None,
-                 energy=None, energy_per_atom=None):
+                 coords_are_cartesian=False, site_properties=None, energy=None):
         """
         Makes a Slab structure, a structure object with additional information
         and methods pertaining to slabs.
@@ -129,7 +126,6 @@ class Slab(Structure):
         self.shift = shift
         self.scale_factor = scale_factor
         self.energy = energy
-        self.energy_per_atom = energy_per_atom
         super(Slab, self).__init__(
             lattice, species, coords, validate_proximity=validate_proximity,
             to_unit_cell=to_unit_cell,
@@ -176,35 +172,6 @@ class Slab(Structure):
         return Slab(s.lattice, s.species_and_occu, s.frac_coords,
                     self.miller_index, self.oriented_unit_cell, self.shift,
                     self.scale_factor, site_properties=s.site_properties)
-    
-    def copy(self, site_properties=None, sanitize=False):
-        """
-        Convenience method to get a copy of the structure, with options to add
-        site properties.
-
-        Args:
-            site_properties (dict): Properties to add or override. The
-                properties are specified in the same way as the constructor,
-                i.e., as a dict of the form {property: [values]}. The
-                properties should be in the order of the *original* structure
-                if you are performing sanitization.
-            sanitize (bool): If True, this method will return a sanitized
-                structure. Sanitization performs a few things: (i) The sites are
-                sorted by electronegativity, (ii) a LLL lattice reduction is
-                carried out to obtain a relatively orthogonalized cell,
-                (iii) all fractional coords for sites are mapped into the
-                unit cell.
-
-        Returns:
-            A copy of the Structure, with optionally new site_properties and
-            optionally sanitized.
-        """
-        props = self.site_properties
-        if site_properties:
-            props.update(site_properties)
-        return Slab(self.lattice, self.species_and_occu, self.frac_coords,
-                    self.miller_index, self.oriented_unit_cell, self.shift,
-                    self.scale_factor, site_properties=props)
 
     def copy(self, site_properties=None, sanitize=False):
         """
@@ -264,11 +231,10 @@ class Slab(Structure):
                 pretty good. Normalized dipole per unit area is used as it is
                 more reliable than using the total, which tends to be larger for
                 slabs with larger surface areas.
-        return np.linalg.norm(dip_per_unit_area) > tol_dipole_per_unit_area
-
         """
         dip_per_unit_area = self.dipole / self.surface_area
         return np.linalg.norm(dip_per_unit_area) > tol_dipole_per_unit_area
+
     @property
     def normal(self):
         """
@@ -426,9 +392,7 @@ class SlabGenerator(object):
                 primitive cell (this does **not** mean the slab is generated
                 from a primitive cell, it simply means that after slab
                 generation, we attempt to find shorter lattice vectors,
-                which lead to less surface area and smaller cells). If the
-                numbers of sites and species in the slab must be an integer
-                multiple of the oriented unit cell, set this parameter to False.
+                which lead to less surface area and smaller cells).
             max_normal_search (int): If set to a positive integer, the code will
                 conduct a search for a normal lattice vector that is as
                 perpendicular to the surface as possible by considering
@@ -570,6 +534,7 @@ class SlabGenerator(object):
 
         slab = Structure(new_lattice, species * nlayers_slab, all_coords,
                          site_properties=props)
+
         scale_factor = self.slab_scale_factor
         # Whether or not to orthogonalize the structure
         if self.lll_reduce:
@@ -822,178 +787,21 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
     symm_ops = get_recp_symmetry_operation(structure)
     unique_millers = []
 
-    def is_already_analyzed(self, miller_index, unique_millers=[]):
-
-        """
-        Creates a function that uses the symmetry operations in the
-        structure to find Miller indices that might give repetitive orientations
-
-        Args:
-            miller_index (tuple): Algorithm will find indices
-                equivalent to this index.
-            unique_millers (list): Algorithm will check if the
-                miller_index is equivalent to any indices in this list.
-        """
-
-        for op in self.symm_ops:
+    def is_already_analyzed(miller_index):
+        for op in symm_ops:
             if in_coord_list(unique_millers, op.operate(miller_index)):
                 return True
         return False
 
-    def get_symmetrically_distinct_miller_indices(self):
-
-        """
-        Returns all symmetrically distinct indices below a certain max-index for
-        a given structure. Analysis is based on the symmetry of the reciprocal
-        lattice of the structure.
-        """
-
-        unique_millers = []
-
-        r = list(range(-self.max_index, self.max_index + 1))
-        r.reverse()
-        for miller in itertools.product(r, r, r):
-            if any([i != 0 for i in miller]):
-                d = abs(reduce(gcd, miller))
-                miller = tuple([int(i / d) for i in miller])
-                if not self.is_already_analyzed(miller, unique_millers):
-                    unique_millers.append(miller)
-        return unique_millers
-
-    def get_symmetrically_equivalent_miller_indices(self, miller_index):
-        """
-        Returns all symmetrically equivalent indices below a certain max-index for
-        a given structure. Analysis is based on the symmetry of the reciprocal
-        lattice of the structure.
-
-        Args:
-            structure (Structure): input structure.
-            miller_index (tuple): Designates the family of Miller indices to find.
-        """
-
-        equivalent_millers = [miller_index]
-        r = list(range(-self.max_index, self.max_index + 1))
-        r.reverse()
-
-        for miller in itertools.product(r, r, r):
-            # print miller
-            if miller[0] == miller_index[0] and \
-               miller[1] == miller_index[1] and \
-               miller[2] == miller_index[2]:
-
-                continue
-
-            if any([i != 0 for i in miller]):
-                d = abs(reduce(gcd, miller))
-                miller = tuple([int(i / d) for i in miller])
-                if in_coord_list(equivalent_millers, miller):
-                    continue
-                if self.is_already_analyzed(miller,
-                                            unique_millers=equivalent_millers):
-                    equivalent_millers.append(miller)
-
-        return equivalent_millers
-
-
-class GetMillerIndices(object):
-
-    def __init__(self, structure, max_index):
-
-        """
-        A class for obtaining a family of indices or
-            unique indices up to a certain max index.
-
-        Args:
-            structure (Structure): input structure.
-            max_index (int): The maximum index. For example, a max_index of 1
-                means that (100), (110), and (111) are returned for the cubic
-                structure. All other indices are equivalent to one of these.
-        """
-
-        recp_lattice = structure.lattice.reciprocal_lattice_crystallographic
-        # Need to make sure recp lattice is big enough, otherwise symmetry
-        # determination will fail. We set the overall volume to 1.
-        recp_lattice = recp_lattice.scale(1)
-        recp = Structure(recp_lattice, ["H"], [[0, 0, 0]])
-
-        analyzer = SpacegroupAnalyzer(recp, symprec=0.001)
-        symm_ops = analyzer.get_symmetry_operations()
-
-        self.structure = structure
-        self.max_index = max_index
-        self.symm_ops = symm_ops
-
-    def is_already_analyzed(self, miller_index, unique_millers=[]):
-
-        """
-        Creates a function that uses the symmetry operations in the
-        structure to find Miller indices that might give repetitive orientations
-
-        Args:
-            miller_index (tuple): Algorithm will find indices
-                equivalent to this index.
-            unique_millers (list): Algorithm will check if the
-                miller_index is equivalent to any indices in this list.
-        """
-
-        for op in self.symm_ops:
-            if in_coord_list(unique_millers, op.operate(miller_index)):
-                return True
-        return False
-
-    def get_symmetrically_distinct_miller_indices(self):
-
-        """
-        Returns all symmetrically distinct indices below a certain max-index for
-        a given structure. Analysis is based on the symmetry of the reciprocal
-        lattice of the structure.
-        """
-
-        unique_millers = []
-
-        r = list(range(-self.max_index, self.max_index + 1))
-        r.reverse()
-        for miller in itertools.product(r, r, r):
-            if any([i != 0 for i in miller]):
-                d = abs(reduce(gcd, miller))
-                miller = tuple([int(i / d) for i in miller])
-                if not self.is_already_analyzed(miller, unique_millers):
-                    unique_millers.append(miller)
-        return unique_millers
-
-    def get_symmetrically_equivalent_miller_indices(self, miller_index):
-        """
-        Returns all symmetrically equivalent indices below a certain max-index for
-        a given structure. Analysis is based on the symmetry of the reciprocal
-        lattice of the structure.
-
-        Args:
-            structure (Structure): input structure.
-            miller_index (tuple): Designates the family of Miller indices to find.
-        """
-
-        equivalent_millers = [miller_index]
-        r = list(range(-self.max_index, self.max_index + 1))
-        r.reverse()
-
-        for miller in itertools.product(r, r, r):
-            # print miller
-            if miller[0] == miller_index[0] and \
-               miller[1] == miller_index[1] and \
-               miller[2] == miller_index[2]:
-
-                continue
-
-            if any([i != 0 for i in miller]):
-                d = abs(reduce(gcd, miller))
-                miller = tuple([int(i / d) for i in miller])
-                if in_coord_list(equivalent_millers, miller):
-                    continue
-                if self.is_already_analyzed(miller,
-                                            unique_millers=equivalent_millers):
-                    equivalent_millers.append(miller)
-
-        return equivalent_millers
+    r = list(range(-max_index, max_index + 1))
+    r.reverse()
+    for miller in itertools.product(r, r, r):
+        if any([i != 0 for i in miller]):
+            d = abs(reduce(gcd, miller))
+            miller = tuple([int(i / d) for i in miller])
+            if not is_already_analyzed(miller):
+                unique_millers.append(miller)
+    return unique_millers
 
 
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
