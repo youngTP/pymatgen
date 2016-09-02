@@ -390,6 +390,7 @@ class IStructure(SiteCollection, MSONable):
         for i in range(len(species)):
             prop = None
             if site_properties:
+                #import pdb; pdb.set_trace()
                 prop = {k: v[i]
                         for k, v in site_properties.items()}
 

@@ -346,6 +346,8 @@ def get_alpha_shape(points, alpha_value = 100.):
     os.remove(results_file.name)
     return [(points[i], points[j], points[k]) for i,j,k in results_indices]
 
+# TODO: for some reason this is buggy with primitive cells, 
+# might be a problem elsewhere
 def generate_decorated_slabs(structure, max_index=1, min_slab_size=5.0, 
                              min_vacuum_size=10.0, max_normal_search=1,
                              center_slab = True):
@@ -357,7 +359,9 @@ def generate_decorated_slabs(structure, max_index=1, min_slab_size=5.0,
     bulk_coords = [len(vcf_bulk.get_coordinated_sites(n))
                    for n in range(len(structure))]
     struct = structure.copy(site_properties = {'bulk_coordinations':bulk_coords})
-    slabs = generate_all_slabs(struct, max_index, min_slab_size, min_vacuum_size,
+    slabs = generate_all_slabs(struct, max_index=max_index, 
+                               min_slab_size=min_slab_size, 
+                               min_vacuum_size=min_vacuum_size,
                                max_normal_search = max_normal_search,
                                center_slab = center_slab)
     new_slabs = []
@@ -379,11 +383,12 @@ def generate_decorated_slabs(structure, max_index=1, min_slab_size=5.0,
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     mpr = MPRester()
-    struct = mpr.get_structures('mp-2')[0]
+    struct = mpr.get_structures('mp-126')[0]
     sga = SpacegroupAnalyzer(struct, 0.1)
     struct = sga.get_conventional_standard_structure()
     vcf = VoronoiCoordFinder(struct)
-    slabs = generate_decorated_slabs(struct) #TODO make parameters
+    slabs = generate_decorated_slabs(struct, 1, 7.0, 
+                                     12.0, max_normal_search=1) #TODO make parameters
     '''
     asf = AdsorbateSiteFinder(slabs[1], selective_dynamics = True)
 
