@@ -248,7 +248,7 @@ class TensorBase(np.ndarray):
         voigt_map = t.get_voigt_dict(rank)
         for ind in voigt_map:
             t[ind] = voigt_input[voigt_map[ind]]
-        return t
+        return cls(t)
 
     def convert_to_ieee(self, structure):
         """
