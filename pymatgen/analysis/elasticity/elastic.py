@@ -393,3 +393,45 @@ class ElasticTensor(TensorBase):
         v = self.voigt
         new_v = 0.5 * (np.transpose(v) + v)
         return ElasticTensor.from_voigt(new_v)
+
+
+class ToecFitter(object):
+    """
+    Optimizer class for third-order elastic constants
+    """
+    def __init__(self, strains, stresses, structure=None):
+        self.strains = strains
+        self.stresses = stresses
+        self.structure = None
+
+    # How much does enforcing symmetry save?  What are the appropriate symmetries?
+    def opt_func(self, super_vec, strains, stresses):
+        c_ijklmn = super_vec[:729].reshape([3]*6)
+        c_ijkl = super_vec[729:].reshape([3]*4)
+        total_resid = 0
+        for stress, strain in zip(stresses, strains):
+            this_resid +=  np.einsum("ijkl,kl->ij", c_ijkl, strain) \
+                    + np.einsum("ijklmn,kl,mn->ij",c_ijklmn, strain, strain) \
+                    - stress
+            total += max(abs(this_resid))
+        return total_resid
+
+    def get_coeff(self, strains, stresses, symm_init=False):
+        guess = self.get_init(symm=symm_init)
+        result = opt.minimize(self.opt_func, args = (strains, stresses))
+        if result.success:
+            return result.x
+        else:
+            raise ValueError("Optimizer failed with message: {}".format(result.message))
+
+    def gen_init(self, symm=True):
+        t1 = TensorBase(50*np.ones([3]*6))
+        t2 = TensorBase(50*np.ones([3]*4))
+        if symm:
+            t1 = t1.fit_to_structure(self.structure)
+            t2 = t2.fit_to_structure(self.structure)
+        return np.concatenate((t1.ravel(), t2.ravel()))
+
+
+if __name__=="__main__":
+    pass
