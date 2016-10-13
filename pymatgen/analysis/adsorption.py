@@ -349,7 +349,7 @@ def get_alpha_shape(points, alpha_value = 100.):
 # TODO: for some reason this is buggy with primitive cells, 
 # might be a problem elsewhere
 def generate_decorated_slabs(structure, max_index=1, min_slab_size=5.0, 
-                             min_vacuum_size=10.0, max_normal_search=1,
+                             min_vacuum_size=10.0, max_normal_search=None,
                              center_slab = True):
     """
     This is a modification of the slab generation method
@@ -383,12 +383,12 @@ def generate_decorated_slabs(structure, max_index=1, min_slab_size=5.0,
 if __name__ == "__main__":
     from pymatgen.matproj.rest import MPRester
     mpr = MPRester()
-    struct = mpr.get_structures('mp-126')[0]
-    sga = SpacegroupAnalyzer(struct, 0.1)
+    struct = mpr.get_structures('mp-23')[0]
+    sga = SpacegroupAnalyzer(struct)
     struct = sga.get_conventional_standard_structure()
     vcf = VoronoiCoordFinder(struct)
     slabs = generate_decorated_slabs(struct, 1, 7.0, 
-                                     12.0, max_normal_search=1) #TODO make parameters
+                                     12.0) #TODO make parameters
     '''
     asf = AdsorbateSiteFinder(slabs[1], selective_dynamics = True)
 
