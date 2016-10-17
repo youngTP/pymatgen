@@ -432,6 +432,102 @@ class ToecFitter(object):
             t2 = t2.fit_to_structure(self.structure)
         return np.concatenate((t1.ravel(), t2.ravel()))
 
+def new_fit(strains, stresses):
+    """
+    Temporary home for I. Winter's TOEC fitting function.
+
+    Args:
+        strains nx3x3 array-like: Array of 3x3 strains
+            to use in fitting of TOEC and SOEC
+        stresses nx3x3 array-like: Array of 3x3 stresses
+            to use in fitting of TOEC and SOEC.  These
+            should be PK2 stresses.
+    """
+
+    # perturbed strain states
+    M2I = np.genfromtxt("SM2I.csv", delimiter=",")
+    M3I = np.genfromtxt("SM3I.csv", delimiter=",")
+
+    assert len(stresses) == len(strains)
+    vstresses = np.array([Stress(stress).voigt for stress in stresses])
+    vstrains = np.array([Strain(strain).voigt for strain in strains])
+    jj = [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 3, 3, 4, 1]
+    kk = [0, 1, 2, 3, 4, 5, 1, 2, 3, 4, 4, 5, 5, 2]
+
+    gamma = np.linspace(-0.0075, 0.0075, 7)
+    gdiag = gamma.copy()
+
+    h = np.diff(gamma)[0]
+    sig = np.zeros([6, 14, 7])
+    coef1 = central_diff(1, 7)
+    coef2 = central_diff(2, 7)
+    dsde = np.zeros((6, 14))
+    d2sde2 = np.zeros((6, 14))
+    for n, (j, k) in enumerate(zip(jj, kk)):
+        # match strains with templates
+        template = np.zeros(6, dtype=bool)
+        template[[j, k]] = True
+        template = np.tile(template, [vstresses.shape[0], 1])
+        mode = (template == (np.abs(vstrains) > 1e-10)).all(axis=1)
+        mstresses = vstresses[mode]
+        mstrains = vstrains[mode]
+        # add zero strain state
+        mstrains = np.vstack([mstrains, np.zeros(6)])
+        mstresses = np.vstack([mstresses, np.zeros(6)])
+        # sort strains/stresses by strain values
+        mstresses = mstresses[mstrains[:, j].argsort()]
+        mstrains = mstrains[mstrains[:, j].argsort()]
+        # This is a bit nebulous, I've checked it using an assertion statement
+        # but should maybe refactor to be a bit clearer
+        sig[:, n, :] = np.transpose(mstresses)
+        #assert (sig2[:, n, :] == sig[:, n, :]).all()
+        for i in range(6):
+            dsde[i, n] = np.dot(sig[i, n, :], coef1) / h
+            d2sde2[i, n] = np.dot(sig[i, n, :], coef2) / h**2
+
+    s2vec = np.ravel(dsde.T)
+    c2vec = np.dot(M2I, s2vec)
+    C2 = np.zeros((6, 6))
+    C2[np.triu_indices(6)] = c2vec
+    C2 = C2 + C2.T - np.diag(np.diag(C2))
+
+    C3 = np.zeros((6, 6, 6))
+    s3vec = np.ravel(d2sde2.T)
+    c3vec = np.dot(M3I, s3vec)
+    list_indices = list(itertools.combinations_with_replacement(range(6), r=3))
+    indices = itertools.combinations_with_replacement(range(6), r=3)
+    for n, (i, j, k) in enumerate(indices):
+        C3[i,j,k] = C3[i,k,j] = C3[j,i,k] = C3[j,k,i] = \
+                C3[k,i,j] = C3[k,j,i] = c3vec[n]
+    
+    import pdb; pdb.set_trace()
+    return C2, C3
+
+def central_diff(k, n):
+    A = np.array([(np.linspace(-1, 1, n) * (n-1) / 2)**i \
+                  / np.math.factorial(i) for i in range(n)])
+    b = np.zeros(n)
+    b[k] = 1
+    return np.linalg.solve(A, b)
 
 if __name__=="__main__":
-    pass
+    import json, sys, pdb, traceback
+    with open("Mo_TOEC_data.json") as f:
+        sdict = json.load(f)
+    strains = sdict["strains"]
+    stresses = sdict["stresses"]
+    pk_stresses = sdict["pk_stresses"]
+    try:
+        C2, C3 = new_fit(strains, pk_stresses)
+        cijkl = TensorBase.from_voigt(C2)
+        cijklmn = TensorBase.from_voigt(C3)
+        model_strain = Strain(strains[0])
+        model_stress = 0.5 * np.einsum("ijklmn,kl,mn->ij", cijklmn, model_strain, model_strain) \
+                + np.einsum("ijkl,kl->ij", cijkl, model_strain)
+        resid = np.array(pk_stresses[0]) - model_stress
+    except:
+        type, value, tb = sys.exc_info()
+        traceback.print_exc()
+        pdb.post_mortem(tb)
+
+
