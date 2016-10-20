@@ -186,7 +186,7 @@ class TensorBase(np.ndarray):
         if self.rank > 4:
             raise ValueError("Voigt notation not standardized "
                              "for tensor ranks higher than 4.")
-        v_matrix = np.zeros(self._vscale.shape)
+        v_matrix = np.zeros(self._vscale.shape, dtype=self.dtype)
         voigt_map = self.get_voigt_dict(self.rank)
         for ind in voigt_map:
             v_matrix[voigt_map[ind]] = self[ind]
@@ -417,3 +417,9 @@ class SquareTensor(TensorBase):
         calculates matrices for polar decomposition
         """
         return polar(self, side=side)
+
+def generate_distinct_elements(rank, structure):
+    """
+    Function to generate distinct elements of a tensor
+    """
+    pass
