@@ -16,6 +16,7 @@ from pymatgen.analysis.elasticity.tensors import TensorBase
 from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.analysis.elasticity.strain import Strain
 import numpy as np
+import sympy as sp
 import warnings
 import itertools
 from six.moves import range
@@ -395,44 +396,72 @@ class ElasticTensor(TensorBase):
         return ElasticTensor.from_voigt(new_v)
 
 
+nf_eval = 1
+import scipy.optimize as opt
 class ToecFitter(object):
     """
     Optimizer class for third-order elastic constants
     """
+    
     def __init__(self, strains, stresses, structure=None):
         self.strains = strains
         self.stresses = stresses
         self.structure = None
+        self.c3_indices = list(itertools.combinations_with_replacement(range(6), r=3))
 
     # How much does enforcing symmetry save?  What are the appropriate symmetries?
     def opt_func(self, super_vec, strains, stresses):
-        c_ijklmn = super_vec[:729].reshape([3]*6)
-        c_ijkl = super_vec[729:].reshape([3]*4)
-        total_resid = 0
+        c3_vec = super_vec[:56]
+        c2_vec = super_vec[56:]
+        assert len(c2_vec) == 21
+        C3 = np.zeros((6, 6, 6))
+        C2 = np.zeros((6, 6))
+        
+        # Construct c_ijkl
+        C2[np.triu_indices(6)] = c2_vec
+        C2 = C2 + C2.T - np.diag(np.diag(C2))
+        c_ijkl = TensorBase.from_voigt(C2)
+
+        # Construct c_ijlkmn
+        for n, (i, j, k) in enumerate(self.c3_indices):
+            C3[i,j,k] = C3[i,k,j] = C3[j,i,k] = C3[j,k,i] = \
+                    C3[k,i,j] = C3[k,j,i] = c3_vec[n]
+        c_ijklmn = TensorBase.from_voigt(C3)
+        #total_resid = np.zeros((3, 3))
+        total_norm = 0
         for stress, strain in zip(stresses, strains):
-            this_resid +=  np.einsum("ijkl,kl->ij", c_ijkl, strain) \
-                    + np.einsum("ijklmn,kl,mn->ij",c_ijklmn, strain, strain) \
+            resid =  np.einsum("ijkl,kl->ij", c_ijkl, strain) \
+                    + 0.5*np.einsum("ijklmn,kl,mn->ij",c_ijklmn, strain, strain) \
                     - stress
-            total += max(abs(this_resid))
-        return total_resid
+            total_norm += np.linalg.norm(resid)
+        return total_norm
 
     def get_coeff(self, strains, stresses, symm_init=False):
-        guess = self.get_init(symm=symm_init)
-        result = opt.minimize(self.opt_func, args = (strains, stresses))
+        guess = self.gen_init()#symm=symm_init)
+        result = opt.minimize(self.opt_func, guess, args = (strains, stresses),
+                              callback=self.callback_f)
         if result.success:
             return result.x
         else:
             raise ValueError("Optimizer failed with message: {}".format(result.message))
 
     def gen_init(self, symm=True):
-        t1 = TensorBase(50*np.ones([3]*6))
-        t2 = TensorBase(50*np.ones([3]*4))
+        t1 = 50*np.ones(56)
+        t2 = 50*np.ones(21)
+        """
         if symm:
             t1 = t1.fit_to_structure(self.structure)
             t2 = t2.fit_to_structure(self.structure)
+        """
         return np.concatenate((t1.ravel(), t2.ravel()))
 
-def new_fit(strains, stresses):
+    def callback_f(self, resid):
+        global nf_eval
+        print("{}: {}".format(nf_eval, resid))
+        nf_eval += 1
+
+
+def new_fit(strains, stresses, structure = None):
     """
     Temporary home for I. Winter's TOEC fitting function.
 
@@ -451,6 +480,9 @@ def new_fit(strains, stresses):
     assert len(stresses) == len(strains)
     vstresses = np.array([Stress(stress).voigt for stress in stresses])
     vstrains = np.array([Strain(strain).voigt for strain in strains])
+    # Note that this is PARTICULAR to the input formalism
+    # from ian
+    # TODO: abstract this
     jj = [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 3, 3, 4, 1]
     kk = [0, 1, 2, 3, 4, 5, 1, 2, 3, 4, 4, 5, 5, 2]
 
@@ -495,11 +527,28 @@ def new_fit(strains, stresses):
     s3vec = np.ravel(d2sde2.T)
     c3vec = np.dot(M3I, s3vec)
     list_indices = list(itertools.combinations_with_replacement(range(6), r=3))
-    indices = itertools.combinations_with_replacement(range(6), r=3)
+    indices_ij = itertools.combinations_with_replacement(range(6), r= 3)
+
+    indices = list(itertools.combinations_with_replacement(range(6), r=3))
+    txt = ''
     for n, (i, j, k) in enumerate(indices):
         C3[i,j,k] = C3[i,k,j] = C3[j,i,k] = C3[j,k,i] = \
                 C3[k,i,j] = C3[k,j,i] = c3vec[n]
-    
+        txt += '\nc_'+''.join(str(m+1) for m in [i, j, k])\
+                + ' = {}'.format(c3vec[n])
+    with open("C_ijk_Mo", 'w') as f:
+        f.write(txt)
+
+    c3_tens = TensorBase.from_voigt(C3)
+    if structure:
+        C3_sym = c3_tens.fit_to_structure(structure).voigt
+        sym_txt = ''
+        for (i, j, k) in indices:
+            sym_txt += '\nc_'+''.join(str(m+1) for m in [i, j, k])\
+                + ' = {}'.format(c3vec[n])
+        with open("C_ijk_sym_Mo", "w") as f:
+            f.write(sym_txt)
+
     import pdb; pdb.set_trace()
     return C2, C3
 
@@ -510,6 +559,63 @@ def central_diff(k, n):
     b[k] = 1
     return np.linalg.solve(A, b)
 
+def generate_pseudo():
+    """
+    Generates the pseudoinverse for a given set of strains
+    """
+    # Will keep in particular input formalism for now,
+    # TODO: abstract this, it could probably just be
+    # an input set of indices
+    jj = [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 3, 3, 4, 1]
+    kk = [0, 1, 2, 3, 4, 5, 1, 2, 3, 4, 4, 5, 5, 2]
+    s = sp.Symbol('s')
+    ni = np.zeros((len(jj), 6))
+    # Create a vector list of symbols corresponding 
+    # to the strain states enumerated above
+    for n, (j, k) in enumerate(zip(jj, kk)):
+        if j==k:
+            ni[n, j] = 1
+        else:
+            ni[n, j] = ni[n, k] = 1
+    # Ensure voigt for shear components
+    ni[:, 3:] *= 2
+    ni = ni*s
+    c2vec, c2arr = get_symbol_list(6, 2)
+    c3vec, c3arr = get_symbol_list(6, 3)
+    s2arr = np.zeros((len(jj), 6), dtype=object)
+    s3arr = np.zeros((len(jj), 6), dtype=object)
+    v_diff = np.vectorize(sp.diff)
+    for n, strain_v in enumerate(ni):
+        s2arr[n] = v_diff(np.dot(c2arr, strain_v), s)
+        s3arr[n] = v_diff(np.dot(np.dot(c3arr, strain_v), strain_v) / 2, s, 2)
+    s2vec, s3vec = s2arr.ravel(), s3arr.ravel()
+    m2 = np.zeros((6*len(jj), len(c2vec)))
+    m3 = np.zeros((6*len(jj), len(c3vec)))
+    for n, c in enumerate(c2vec):
+        m2[:, n] = v_diff(s2vec, c)
+    for n, c in enumerate(c3vec):
+        m3[:, n] = v_diff(s3vec, c)
+    m2i = np.linalg.pinv(m2)
+    m3i = np.linalg.pinv(m3)
+    # perturbed strain states
+    M2I = np.genfromtxt("SM2I.csv", delimiter=",")
+    M3I = np.genfromtxt("SM3I.csv", delimiter=",")
+    assert (m2i - M2I < 1e-14).all()
+    assert (m3i - M3I < 1e-14).all()
+    import pdb; pdb.set_trace()
+
+def get_symbol_list(dim, rank):
+    indices = list(
+        itertools.combinations_with_replacement(range(dim), r=rank))
+    c_vec = np.zeros(len(indices), dtype=object)
+    c_arr = np.zeros([dim]*rank, dtype=object)
+    for n, idx in enumerate(indices):
+        c_vec[n] = sp.Symbol('c_'+''.join([str(i) for i in idx]))
+        for perm in itertools.permutations(idx):
+            c_arr[perm] = c_vec[n]
+    return c_vec, c_arr
+
+
 if __name__=="__main__":
     import json, sys, pdb, traceback
     with open("Mo_TOEC_data.json") as f:
@@ -518,6 +624,7 @@ if __name__=="__main__":
     stresses = sdict["stresses"]
     pk_stresses = sdict["pk_stresses"]
     try:
+        """
         C2, C3 = new_fit(strains, pk_stresses)
         cijkl = TensorBase.from_voigt(C2)
         cijklmn = TensorBase.from_voigt(C3)
@@ -525,9 +632,20 @@ if __name__=="__main__":
         model_stress = 0.5 * np.einsum("ijklmn,kl,mn->ij", cijklmn, model_strain, model_strain) \
                 + np.einsum("ijkl,kl->ij", cijkl, model_strain)
         resid = np.array(pk_stresses[0]) - model_stress
+        """
+        generate_pseudo()
     except:
         type, value, tb = sys.exc_info()
         traceback.print_exc()
         pdb.post_mortem(tb)
+    """
+    try:
+        toec_fitter = ToecFitter(strains, pk_stresses)
+        vec = toec_fitter.get_coeff(strains, pk_stresses)
+    except:
+        type, value, tb = sys.exc_info()
+        traceback.print_exc()
+        pdb.post_mortem(tb)
+        """
 
 
