@@ -11,7 +11,6 @@ including methods used to fit the elastic tensor from linear response
 stress-strain data
 """
 
-from pymatgen.analysis.elasticity import voigt_map, reverse_voigt_map
 from pymatgen.analysis.elasticity.tensors import TensorBase
 from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.analysis.elasticity.strain import Strain
@@ -461,7 +460,7 @@ class ToecFitter(object):
         nf_eval += 1
 
 
-def new_fit(strains, stresses, structure = None):
+def new_fit(strains, stresses, structure = None, output=None, eq_stress = None):
     """
     Temporary home for I. Winter's TOEC fitting function.
 
@@ -471,11 +470,14 @@ def new_fit(strains, stresses, structure = None):
         stresses nx3x3 array-like: Array of 3x3 stresses
             to use in fitting of TOEC and SOEC.  These
             should be PK2 stresses.
+        structure: Structure
+        output: name for file output, if none doesn't output file
     """
 
     # perturbed strain states
-    M2I = np.genfromtxt("SM2I.csv", delimiter=",")
-    M3I = np.genfromtxt("SM3I.csv", delimiter=",")
+    #M2I = np.genfromtxt("SM2I.csv", delimiter=",")
+    #M3I = np.genfromtxt("SM3I.csv", delimiter=",")
+    M2I, M3I = generate_pseudo()
 
     assert len(stresses) == len(strains)
     vstresses = np.array([Stress(stress).voigt for stress in stresses])
@@ -485,8 +487,7 @@ def new_fit(strains, stresses, structure = None):
     # TODO: abstract this
     jj = [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 3, 3, 4, 1]
     kk = [0, 1, 2, 3, 4, 5, 1, 2, 3, 4, 4, 5, 5, 2]
-
-    gamma = np.linspace(-0.0075, 0.0075, 7)
+    gamma = np.linspace(-0.05, 0.05, 7)
     gdiag = gamma.copy()
 
     h = np.diff(gamma)[0]
@@ -511,23 +512,30 @@ def new_fit(strains, stresses, structure = None):
         mstrains = mstrains[mstrains[:, j].argsort()]
         # This is a bit nebulous, I've checked it using an assertion statement
         # but should maybe refactor to be a bit clearer
+        #import pdb; pdb.set_trace()
+        # HACK
+        if eq_stress is not None:
+            # eq_stress in standard notation
+            mstresses[3] = Stress(eq_stress).voigt
         sig[:, n, :] = np.transpose(mstresses)
+        #import pdb; pdb.set_trace()
+        #if n==5:
+            #import pdb; pdb.set_trace()
         #assert (sig2[:, n, :] == sig[:, n, :]).all()
         for i in range(6):
             dsde[i, n] = np.dot(sig[i, n, :], coef1) / h
             d2sde2[i, n] = np.dot(sig[i, n, :], coef2) / h**2
-
     s2vec = np.ravel(dsde.T)
     c2vec = np.dot(M2I, s2vec)
     C2 = np.zeros((6, 6))
     C2[np.triu_indices(6)] = c2vec
     C2 = C2 + C2.T - np.diag(np.diag(C2))
-
     C3 = np.zeros((6, 6, 6))
     s3vec = np.ravel(d2sde2.T)
     c3vec = np.dot(M3I, s3vec)
+    #import pdb; pdb.set_trace()
     list_indices = list(itertools.combinations_with_replacement(range(6), r=3))
-    indices_ij = itertools.combinations_with_replacement(range(6), r= 3)
+    indices_ij = itertools.combinations_with_replacement(range(6), r=3)
 
     indices = list(itertools.combinations_with_replacement(range(6), r=3))
     txt = ''
@@ -536,8 +544,9 @@ def new_fit(strains, stresses, structure = None):
                 C3[k,i,j] = C3[k,j,i] = c3vec[n]
         txt += '\nc_'+''.join(str(m+1) for m in [i, j, k])\
                 + ' = {}'.format(c3vec[n])
-    with open("C_ijk_Mo", 'w') as f:
-        f.write(txt)
+    if output:
+        with open("C_ijk_{}".format(output), 'w') as f:
+            f.write(txt)
 
     c3_tens = TensorBase.from_voigt(C3)
     if structure:
@@ -546,10 +555,10 @@ def new_fit(strains, stresses, structure = None):
         for (i, j, k) in indices:
             sym_txt += '\nc_'+''.join(str(m+1) for m in [i, j, k])\
                 + ' = {}'.format(c3vec[n])
-        with open("C_ijk_sym_Mo", "w") as f:
+        with open("C_ijk_sym_{}".format(sys.argv[1].split('_')[0]), "w") as f:
             f.write(sym_txt)
 
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     return C2, C3
 
 def central_diff(k, n):
@@ -598,11 +607,12 @@ def generate_pseudo():
     m2i = np.linalg.pinv(m2)
     m3i = np.linalg.pinv(m3)
     # perturbed strain states
-    M2I = np.genfromtxt("SM2I.csv", delimiter=",")
-    M3I = np.genfromtxt("SM3I.csv", delimiter=",")
-    assert (m2i - M2I < 1e-14).all()
-    assert (m3i - M3I < 1e-14).all()
-    import pdb; pdb.set_trace()
+    #M2I = np.genfromtxt("SM2I.csv", delimiter=",")
+    #M3I = np.genfromtxt("SM3I.csv", delimiter=",")
+    #assert (m2i - M2I < 1e-14).all()
+    #assert (m3i - M3I < 1e-14).all()
+    #import pdb; pdb.set_trace()
+    return m2i, m3i
 
 def get_symbol_list(dim, rank):
     indices = list(
@@ -618,13 +628,12 @@ def get_symbol_list(dim, rank):
 
 if __name__=="__main__":
     import json, sys, pdb, traceback
-    with open("Mo_TOEC_data.json") as f:
+    with open(sys.argv[1]) as f:
         sdict = json.load(f)
     strains = sdict["strains"]
     stresses = sdict["stresses"]
     pk_stresses = sdict["pk_stresses"]
     try:
-        """
         C2, C3 = new_fit(strains, pk_stresses)
         cijkl = TensorBase.from_voigt(C2)
         cijklmn = TensorBase.from_voigt(C3)
@@ -632,7 +641,6 @@ if __name__=="__main__":
         model_stress = 0.5 * np.einsum("ijklmn,kl,mn->ij", cijklmn, model_strain, model_strain) \
                 + np.einsum("ijkl,kl->ij", cijkl, model_strain)
         resid = np.array(pk_stresses[0]) - model_stress
-        """
         generate_pseudo()
     except:
         type, value, tb = sys.exc_info()
