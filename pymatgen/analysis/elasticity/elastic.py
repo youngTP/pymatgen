@@ -11,7 +11,8 @@ including methods used to fit the elastic tensor from linear response
 stress-strain data
 """
 
-from pymatgen.analysis.elasticity.tensors import TensorBase
+from pymatgen.analysis.elasticity.tensors import TensorBase, \
+        voigt_map, reverse_voigt_map
 from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.analysis.elasticity.strain import Strain
 import numpy as np
