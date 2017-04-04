@@ -389,20 +389,21 @@ class AdsorbateSiteFinder(object):
             reorient (bool): flag on whether to reorient the molecule to
                 have its z-axis concurrent with miller index
         """
+        ads = molecule.copy()
         if reorient:
             # Reorient the molecule along slab m_index
             sop = get_rot(self.slab)
-            molecule.apply_operation(sop.inverse)
+            ads.apply_operation(sop.inverse)
         struct = self.slab.copy()
         if repeat:
             struct.make_supercell(repeat)
         if 'surface_properties' in struct.site_properties.keys():
-            molecule.add_site_property("surface_properties",
+            ads.add_site_property("surface_properties",
                                        ["adsorbate"] * molecule.num_sites)
         if 'selective_dynamics' in struct.site_properties.keys():
-            molecule.add_site_property("selective_dynamics",
-                                       [[True, True, True]] * molecule.num_sites)
-        for site in molecule:
+            ads.add_site_property("selective_dynamics",
+                                  [[True, True, True]] * molecule.num_sites)
+        for site in ads:
             struct.append(site.specie, ads_coord + site.coords, coords_are_cartesian = True,
                           properties = site.properties)
         return struct
