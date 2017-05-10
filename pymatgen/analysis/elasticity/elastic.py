@@ -560,11 +560,19 @@ class ElasticTensorExpansion(TensorCollection):
         denom = 0
         c = 1
         for xyz in xyzs:
+            for i, j in itertools.product(range(2), repeat=2):
+                n, u = xyz[i], xyz[j]
+                if temperature:
+                    c = self.get_heat_capacity(temperature, structure, n, u)
+                num += c*self.get_ggt(n, u)
+                denom += c
+            """
             for v in xyz:
                 if temperature:
                     c = self.get_heat_capacity(temperature, structure, xyz[0], v)
                 num += c*self.get_ggt(xyz[0], v)
                 denom += c
+            """
         return num / denom
 
     def get_gruneisen_parameter(self, temperature=None, structure=None, 
