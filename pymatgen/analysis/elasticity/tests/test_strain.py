@@ -6,7 +6,7 @@ from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Structure
 from pymatgen.analysis.elasticity.tensors import Tensor
 from pymatgen.analysis.elasticity.strain import Strain, Deformation,\
-        convert_strain_to_deformation
+        convert_strain_to_deformation, DeformedStructureSet
 from pymatgen.util.testing import PymatgenTest
 import numpy as np
 import warnings
@@ -151,6 +151,24 @@ class StrainTest(PymatgenTest):
         self.assertTrue(Tensor(symm).is_symmetric())
         for defo in upper, symm:
             self.assertArrayAlmostEqual(defo.green_lagrange_strain, strain)
+
+
+class DeformedStructureSetTest(PymatgenTest):
+    def setUp(self):
+        self.structure = self.get_structure("Sn")
+        self.default_dss = DeformedStructureSet(self.structure)
+
+    def test_init(self):
+        with self.assertRaises(ValueError):
+            DeformedStructureSet(self.structure, num_norm=5)
+        with self.assertRaises(ValueError):
+            DeformedStructureSet(self.structure, num_shear=5)
+        self.assertEqual(self.structure, self.default_dss.undeformed_structure)
+        # Test symmetry
+        dss_symm = DeformedStructureSet(self.structure, symmetry=True)
+        # Should be 4 strains for normal, 2 for shear (since +/- shear
+        # are symmetrically equivalent)
+        self.assertEqual(len(dss_symm), 6)
 
 if __name__ == '__main__':
     unittest.main()
