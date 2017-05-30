@@ -469,6 +469,7 @@ class MPStaticSet(MPRelaxSet):
 
         self.prev_incar = prev_incar
         self.prev_kpoints = prev_kpoints
+        self.use_prev_kpoints = use_prev_kpoints
         self.reciprocal_density = reciprocal_density
         self.structure = structure
         self.kwargs = kwargs
@@ -529,19 +530,23 @@ class MPStaticSet(MPRelaxSet):
             self.reciprocal_density
         kpoints = super(MPStaticSet, self).kpoints
         # Prefer to use k-point scheme from previous run
-        if self.prev_kpoints and self.prev_kpoints.style != kpoints.style:
-            if self.prev_kpoints.style == Kpoints.supported_modes.Monkhorst:
-                k_div = [kp + 1 if kp % 2 == 1 else kp
-                         for kp in kpoints.kpts[0]]
-                kpoints = Kpoints.monkhorst_automatic(k_div)
-            else:
-                kpoints = Kpoints.gamma_automatic(kpoints.kpts[0])
+        if self.prev_kpoints:             
+            if self.use_prev_kpoints:
+                kpoints = self.prev_kpoints
+            if self.prev_kpoints.style != kpoints.style:
+                if self.prev_kpoints.style == Kpoints.supported_modes.Monkhorst:
+                    k_div = [kp + 1 if kp % 2 == 1 else kp
+                             for kp in kpoints.kpts[0]]
+                    kpoints = Kpoints.monkhorst_automatic(k_div)
+                else:
+                    kpoints = Kpoints.gamma_automatic(kpoints.kpts[0])
         return kpoints
 
     @classmethod
     def from_prev_calc(cls, prev_calc_dir, standardize=False, sym_prec=0.1,
                        international_monoclinic=True, reciprocal_density=100,
-                       small_gap_multiply=None, **kwargs):
+                       small_gap_multiply=None, use_prev_kpoints=False, 
+                       **kwargs):
         """
         Generate a set of Vasp input files for static calculations from a
         directory of previous Vasp run.
