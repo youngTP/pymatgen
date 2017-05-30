@@ -469,7 +469,6 @@ class MPStaticSet(MPRelaxSet):
 
         self.prev_incar = prev_incar
         self.prev_kpoints = prev_kpoints
-        self.use_prev_kpoints = use_prev_kpoints
         self.reciprocal_density = reciprocal_density
         self.structure = structure
         self.kwargs = kwargs
@@ -531,9 +530,9 @@ class MPStaticSet(MPRelaxSet):
         kpoints = super(MPStaticSet, self).kpoints
         # Prefer to use k-point scheme from previous run
         if self.prev_kpoints:             
-            if self.use_prev_kpoints:
+            if use_prev_kpoints:
                 kpoints = self.prev_kpoints
-            if self.prev_kpoints.style != kpoints.style:
+            elif self.prev_kpoints.style != kpoints.style:
                 if self.prev_kpoints.style == Kpoints.supported_modes.Monkhorst:
                     k_div = [kp + 1 if kp % 2 == 1 else kp
                              for kp in kpoints.kpts[0]]
