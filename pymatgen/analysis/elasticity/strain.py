@@ -166,15 +166,6 @@ class DeformedStructureSet(collections.Sequence):
     def __getitem__(self, ind):
         return self.def_structs[ind]
 
-    def as_strain_dict(self):
-        """
-        Returns dictionary of deformed structures indexed by independent
-        strain objects in accordance with legacy behavior of elasticity
-        package
-        """
-        strains = [IndependentStrain(defo) for defo in self.deformations]
-        return dict(zip(strains, self.def_structs))
-
 
 class Strain(SquareTensor):
     """
