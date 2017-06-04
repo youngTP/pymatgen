@@ -199,6 +199,11 @@ class MITMPRelaxSetTest(unittest.TestCase):
         self.assertEqual(kpoints.kpts, [[2, 4, 5]])
         self.assertEqual(kpoints.style, Kpoints.supported_modes.Gamma)
 
+        direct_kwargs = {"kpts":((5, 5, 5),)}
+        kpoints = MPRelaxSet(self.structure, user_kpoints_settings={
+            "direct_kwargs":direct_kwargs}).kpoints
+        self.assertEqual(kpoints.kpts, ((5, 5, 5),))
+
     def test_all_input(self):
         d = self.mitset.all_input
         self.assertEqual(d["INCAR"]["ISMEAR"], -5)
