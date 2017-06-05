@@ -378,7 +378,7 @@ class DictSet(VaspInputSet):
                 "grid_density: for Kpoints.automatic_density generation, "
                 "reciprocal_density: for KPoints.automatic_density_by_vol "
                 "generation, length  : for Kpoints.automatic generation "
-                "and direct_kwargs : for use of the default Kpoints constructor")
+                "and kpoints_object : for input of a kpoints object")
 
     def __str__(self):
         return self.__class__.__name__
