@@ -59,7 +59,7 @@ class AdsorbateSiteFinder(object):
     """
 
     def __init__(self, slab, selective_dynamics=False, 
-                 height=0.9, mi_vec=None):
+                 height=0.9, ptol=None, mi_vec=None):
         """
         Create an AdsorbateSiteFinder object.  
 
@@ -73,13 +73,12 @@ class AdsorbateSiteFinder(object):
                 slabs that have been reoriented, but the miller vector
                 must be supplied manually
         """
-        self.mi_string = ''.join([str(i) for i in slab.miller_index])
         # get surface normal from miller index
         if mi_vec:
             self.mvec = mi_vec
         else:
             self.mvec = get_mi_vec(slab)
-        slab = self.assign_site_properties(slab, height)
+        slab = self.assign_site_properties(slab, height, ptol)
         if selective_dynamics:
             slab = self.assign_selective_dynamics(slab)
         self.slab = slab
@@ -150,7 +149,7 @@ class AdsorbateSiteFinder(object):
         new_slab = this_slab.copy(site_properties=new_site_properties)
         return cls(new_slab, selective_dynamics)
 
-    def find_surface_sites_by_height(self, slab, height=0.9, xy_tol=0.05):
+    def find_surface_sites_by_height(self, slab, height=0.9, ptol=None):
         """
         This method finds surface sites by determining which sites are within
         a threshold value in height from the topmost site in a list of sites
@@ -160,7 +159,7 @@ class AdsorbateSiteFinder(object):
             height (float): threshold in angstroms of distance from topmost
                 site in slab along the slab c-vector to include in surface 
                 site determination
-            xy_tol (float): if supplied, will remove any sites which are
+            ptol (float): if supplied, will remove any sites which are
                 within a certain distance in the miller plane.
 
         Returns:
@@ -174,29 +173,29 @@ class AdsorbateSiteFinder(object):
         # Mask based on window threshold along the miller index
         mask = (m_projs - np.amax(m_projs)) >= -height
         surf_sites = [slab.sites[n] for n in np.where(mask)[0]] 
-        if xy_tol:
+        if ptol:
             # sort surface sites by height
             surf_sites = [s for (h, s) in zip(m_projs[mask], surf_sites)]
             surf_sites.reverse()
             unique_sites, unique_perp_fracs = [], []
             for site in surf_sites:
                 this_perp = site.coords - np.dot(site.coords, self.mvec)
-                this_perp_frac = cart_to_frac(slab.lattice, this_perp)
-                if not in_coord_list_pbc(unique_perp_fracs, this_perp_frac):
+                this_pfrac = cart_to_frac(slab.lattice, this_perp)
+                if not in_coord_list_pbc(unique_perp_fracs, this_pfrac, ptol):
                     unique_sites.append(site)
-                    unique_perp_fracs.append(this_perp_frac)
+                    unique_perp_fracs.append(this_pfrac)
             surf_sites = unique_sites
 
         return surf_sites
 
-    def assign_site_properties(self, slab, height=0.9):
+    def assign_site_properties(self, slab, height=0.9, ptol=None):
         """
         Assigns site properties.
         """
         if 'surface_properties' in slab.site_properties.keys():
             return slab
         else:
-            surf_sites = self.find_surface_sites_by_height(slab, height)
+            surf_sites = self.find_surface_sites_by_height(slab, height, ptol)
         surf_props = ['surface' if site in surf_sites
                       else 'subsurface' for site in slab.sites]
         return slab.copy(
