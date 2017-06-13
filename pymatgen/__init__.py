@@ -2,14 +2,13 @@ from __future__ import unicode_literals
 
 import os
 import warnings
-import yaml
+import ruamel.yaml as yaml
 
 __author__ = "Pymatgen Development Team"
 __email__ ="pymatgen@googlegroups.com"
 __maintainer__ = "Shyue Ping Ong"
 __maintainer_email__ ="shyuep@gmail.com"
-__date__ = "May 27 2017"
-__version__ = "4.7.7"
+__version__ = "2017.6.8"
 
 
 SETTINGS_FILE = os.path.join(os.path.expanduser("~"), ".pmgrc.yaml")
@@ -18,7 +17,7 @@ SETTINGS_FILE = os.path.join(os.path.expanduser("~"), ".pmgrc.yaml")
 def _load_pmg_settings():
     try:
         with open(SETTINGS_FILE, "rt") as f:
-            d = yaml.load(f)
+            d = yaml.safe_load(f)
     except IOError:
         # If there are any errors, default to using environment variables
         # if present.
@@ -46,10 +45,10 @@ def get_structure_from_mp(formula):
     """
     Convenience method to get a crystal from the Materials Project database via
     the API. Requires PMG_MAPI_KEY to be set.
-    
+
     Args:
         formula (str): A formula
-    
+
     Returns:
         (Structure) The lowest energy structure in Materials Project with that
             formula.
