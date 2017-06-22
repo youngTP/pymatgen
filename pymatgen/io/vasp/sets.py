@@ -370,10 +370,6 @@ class DictSet(VaspInputSet):
         elif settings.get('length'):
             return Kpoints.automatic(settings['length'])
 
-        # If from_dict, construct kpoints from_dict directly
-        elif settings.get('kpoints_object'):
-            return settings.get('kpoints_object')
-
         # Raise error. Unsure of which kpoint generation to use
         else:
             raise ValueError(
