@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" />
-<title>Molecule</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>Getting crystal structures from online sources</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
 
 <style type="text/css">
@@ -11775,15 +11775,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h2>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>This notebook demonstrates pymatgen's functionality in terms of creating and editing molecules, as well as its integration with OpenBabel. For the latter, please note that you will need to have openbabel with python bindings installed. Please refer to pymatgen's documentation for installation details.</p>
+<h1 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h1><p>Pymatgen supports reading of most common file formats, including the Crystallographic Information File and various input and output files of computational codes like VASP. However, it is often easier and quicker to directly query for structures from online sources. Though private databases such as the Inorganic Crystal Structure Database are not open, there are open sources such as the Materials Project and the Crystallographic Open Database (COD) where one can obtain crystal structures.</p>
 
 </div>
 </div>
@@ -11792,7 +11784,8 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Molecules">Molecules<a class="anchor-link" href="#Molecules">&#182;</a></h2>
+<h2 id="Materials-Project">Materials Project<a class="anchor-link" href="#Materials-Project">&#182;</a></h2><p>Pymatgen contains a high-level interface to the Materials Project, which can be used to query for structures very easily.</p>
+
 </div>
 </div>
 </div>
@@ -11801,44 +11794,13 @@ div#notebook {
 <div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">Molecule</span>
-<span class="c1"># Create a methane molecule.</span>
-<span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
-          <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">1.089000</span><span class="p">],</span>
-          <span class="p">[</span><span class="mf">1.026719</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">],</span>
-          <span class="p">[</span><span class="o">-</span><span class="mf">0.513360</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.889165</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">],</span>
-          <span class="p">[</span><span class="o">-</span><span class="mf">0.513360</span><span class="p">,</span> <span class="mf">0.889165</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">]]</span>
-<span class="n">mol</span> <span class="o">=</span> <span class="n">Molecule</span><span class="p">([</span><span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">pymatgen.ext.matproj</span> <span class="k">import</span> <span class="n">MPRester</span>
+<span class="c1"># Note that you will need to add your Materials API key in your .pmgrc.yaml file as &quot;PMG_MAPI_KEY&quot;. </span>
+<span class="c1"># Alternatively, you will need to supply the API key as an arg to MPRester.</span>
+<span class="n">mpr</span> <span class="o">=</span> <span class="n">MPRester</span><span class="p">()</span> 
 </pre></div>
 
 </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>Full Formula (H4 C1)
-Reduced Formula: H4C
-Charge = 0, Spin Mult = 1
-Sites (5)
-0 C     0.000000     0.000000     0.000000
-1 H     0.000000     0.000000     1.089000
-2 H     1.026719     0.000000    -0.363000
-3 H    -0.513360    -0.889165    -0.363000
-4 H    -0.513360     0.889165    -0.363000
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -11848,9 +11810,9 @@ Sites (5)
 <div class="prompt input_prompt">In&nbsp;[2]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># A Molecule is simply a list of Sites.</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Querying by formula only.</span>
+<span class="n">structures</span> <span class="o">=</span> <span class="n">mpr</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="s2">&quot;Li2O&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">structures</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -11867,8 +11829,36 @@ Sites (5)
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[0.0, 0.0, 0.0] C
-[0.0, 0.0, 1.089] H
+<pre>[Structure Summary
+Lattice
+    abc : 3.2910717923597561 3.2910718996250861 3.2910720568557887
+ angles : 60.129710432884849 60.129709521376753 60.129703130390972
+ volume : 25.279668381289056
+      A : 2.91738857 0.097894369999999994 1.5200046599999999
+      B : 0.96463405999999996 2.7550356100000002 1.5200046599999999
+      C : 0.13320635 0.097894430000000004 3.28691771
+PeriodicSite: O (0.0000, 0.0000, 0.0000) [0.0000, 0.0000, 0.0000]
+PeriodicSite: Li (3.0121, 2.2136, 4.7463) [0.7502, 0.7502, 0.7502]
+PeriodicSite: Li (1.0031, 0.7372, 1.5806) [0.2498, 0.2498, 0.2498], Structure Summary
+Lattice
+    abc : 5.1517948200000001 3.1404278300000001 5.9334081599999999
+ angles : 90.0 90.0 90.0
+ volume : 95.995660249910003
+      A : 5.1517948200000001 0.0 0.0
+      B : 0.0 3.1404278300000001 0.0
+      C : 0.0 0.0 5.9334081599999999
+PeriodicSite: Li (0.0631, 0.7851, 0.9438) [0.0122, 0.2500, 0.1591]
+PeriodicSite: Li (0.7268, 0.7851, 3.4367) [0.1411, 0.2500, 0.5792]
+PeriodicSite: Li (1.8490, 2.3553, 0.4700) [0.3589, 0.7500, 0.0792]
+PeriodicSite: Li (2.5128, 2.3553, 3.9105) [0.4878, 0.7500, 0.6591]
+PeriodicSite: Li (2.6390, 0.7851, 2.0229) [0.5122, 0.2500, 0.3409]
+PeriodicSite: Li (3.3027, 0.7851, 5.4634) [0.6411, 0.2500, 0.9208]
+PeriodicSite: Li (4.4249, 2.3553, 2.4967) [0.8589, 0.7500, 0.4208]
+PeriodicSite: Li (5.0887, 2.3553, 4.9896) [0.9878, 0.7500, 0.8409]
+PeriodicSite: O (1.2677, 2.3553, 2.3664) [0.2461, 0.7500, 0.3988]
+PeriodicSite: O (1.3082, 0.7851, 5.3331) [0.2539, 0.2500, 0.8988]
+PeriodicSite: O (3.8436, 2.3553, 0.6003) [0.7461, 0.7500, 0.1012]
+PeriodicSite: O (3.8841, 0.7851, 3.5670) [0.7539, 0.2500, 0.6012]]
 </pre>
 </div>
 </div>
@@ -11882,9 +11872,11 @@ Sites (5)
 <div class="prompt input_prompt">In&nbsp;[3]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># Break a Molecule into two by breaking a bond.</span>
-<span class="k">for</span> <span class="n">frag</span> <span class="ow">in</span> <span class="n">mol</span><span class="o">.</span><span class="n">break_bond</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="n">frag</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Querying by chemical system only.</span>
+<span class="n">structures</span> <span class="o">=</span> <span class="n">mpr</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="s2">&quot;Li-O&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">structures</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">)</span>
+<span class="c1"># A number of Li-O structures are returned with different Li:O ratios.</span>
 </pre></div>
 
 </div>
@@ -11901,19 +11893,12 @@ Sites (5)
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>Full Formula (H3 C1)
-Reduced Formula: H3C
-Charge = 0, Spin Mult = 2
-Sites (4)
-0 C     0.000000     0.000000     0.000000
-1 H     1.026719     0.000000    -0.363000
-2 H    -0.513360    -0.889165    -0.363000
-3 H    -0.513360     0.889165    -0.363000
-Full Formula (H1)
-Reduced Formula: H2
-Charge = 0, Spin Mult = 2
-Sites (1)
-0 H     0.000000     0.000000     1.089000
+<pre>Li2 O4
+Li2 O1
+Li8 O4
+Li4 O4
+Li1 O3
+Li16 O16
 </pre>
 </div>
 </div>
@@ -11921,35 +11906,26 @@ Sites (1)
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="COD">COD<a class="anchor-link" href="#COD">&#182;</a></h2><p>To obtain structures from COD by the COD id, you just need to know the id. However, most sophisticated searches require that you have installed mysql given that the COD does not support a proper REST API at this time.</p>
+
+</div>
+</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># Getting neighbors that are within 3 angstroms from C atom.</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span><span class="n">mol</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">pymatgen.ext.cod</span> <span class="k">import</span> <span class="n">COD</span>
+<span class="n">cod</span> <span class="o">=</span> <span class="n">COD</span><span class="p">()</span>
 </pre></div>
 
 </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>[(Site: H (0.0000, 0.0000, 1.0890), 1.089), (Site: H (1.0267, 0.0000, -0.3630), 1.0889999563640946), (Site: H (-0.5134, -0.8892, -0.3630), 1.0890004071739368), (Site: H (-0.5134, 0.8892, -0.3630), 1.0890004071739368)]
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -11959,8 +11935,8 @@ Sites (1)
 <div class="prompt input_prompt">In&nbsp;[5]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1">#Detecting bonds</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">get_covalent_bonds</span><span class="p">())</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">structure</span> <span class="o">=</span> <span class="n">cod</span><span class="o">.</span><span class="n">get_structure_by_id</span><span class="p">(</span><span class="mi">1010064</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -11977,7 +11953,25 @@ Sites (1)
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[Covalent bond between [0.0, 0.0, 0.0] C and [0.0, 0.0, 1.089] H, Covalent bond between [0.0, 0.0, 0.0] C and [1.026719, 0.0, -0.363] H, Covalent bond between [0.0, 0.0, 0.0] C and [-0.51336, -0.889165, -0.363] H, Covalent bond between [0.0, 0.0, 0.0] C and [-0.51336, 0.889165, -0.363] H]
+<pre>Full Formula (Li8 O4)
+Reduced Formula: Li2O
+abc   :   4.610000   4.610000   4.610000
+angles:  90.000000  90.000000  90.000000
+Sites (12)
+  #  SP       a     b     c
+---  ----  ----  ----  ----
+  0  Li+   0.25  0.25  0.25
+  1  Li+   0.25  0.75  0.75
+  2  Li+   0.75  0.25  0.75
+  3  Li+   0.75  0.75  0.25
+  4  Li+   0.75  0.75  0.75
+  5  Li+   0.75  0.25  0.25
+  6  Li+   0.25  0.75  0.25
+  7  Li+   0.25  0.25  0.75
+  8  O2-   0     0     0
+  9  O2-   0     0.5   0.5
+ 10  O2-   0.5   0     0.5
+ 11  O2-   0.5   0.5   0
 </pre>
 </div>
 </div>
@@ -11991,10 +11985,9 @@ Sites (1)
 <div class="prompt input_prompt">In&nbsp;[6]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># If you need to run the molecule in a box with a periodic boundary condition</span>
-<span class="c1"># code, you can generate the boxed structure as follows (in a 10Ax10Ax10A box)</span>
-<span class="n">structure</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">get_boxed_structure</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-<span class="k">print</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">structures</span> <span class="o">=</span> <span class="n">cod</span><span class="o">.</span><span class="n">get_structure_by_formula</span><span class="p">(</span><span class="s2">&quot;Li2O&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">structures</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;COD ID: </span><span class="si">%d</span><span class="s2">, Formula: </span><span class="si">%s</span><span class="s2">, Spacegroup: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;cod_id&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;sg&quot;</span><span class="p">]))</span>
 </pre></div>
 
 </div>
@@ -12010,19 +12003,35 @@ Sites (1)
 <div class="prompt"></div>
 
 
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>/Users/shyue/repos/pymatgen/pymatgen/io/cif.py:801: UserWarning: LI parsed as L
+  warnings.warn(&#34;{} parsed as {}&#34;.format(sym, v))
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+<div class="prompt"></div>
+
+
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>Full Formula (H4 C1)
-Reduced Formula: H4C
-abc   :  10.000000  10.000000  10.000000
-angles:  90.000000  90.000000  90.000000
-Sites (5)
-  #  SP           a         b       c
----  ----  --------  --------  ------
-  0  H     0.5       0.5       0.6089
-  1  H     0.602672  0.5       0.4637
-  2  H     0.448664  0.411083  0.4637
-  3  H     0.448664  0.588917  0.4637
-  4  C     0.5       0.5       0.5
+<pre>COD ID: 1010064, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 1011372, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 9009059, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 4311895, Formula: L8 O4, Spacegroup: F m -3 m
+COD ID: 1514086, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 1514087, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 1514088, Formula: Li6 O3, Spacegroup: R -3 m :H
+COD ID: 4121514, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 4121515, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 1514092, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 1514093, Formula: Li7.84 O4, Spacegroup: F m -3 m
+COD ID: 1514094, Formula: Li7.9984 O4, Spacegroup: F m -3 m
+COD ID: 1514095, Formula: Li8.0008 O4, Spacegroup: F m -3 m
+COD ID: 1514096, Formula: Li8 O4, Spacegroup: F m -3 m
+COD ID: 1514097, Formula: Li8.0008 O4, Spacegroup: F m -3 m
+COD ID: 1514098, Formula: Li8 O4, Spacegroup: F m -3 m
 </pre>
 </div>
 </div>
@@ -12036,51 +12045,7 @@ Sites (5)
 <div class="prompt input_prompt">In&nbsp;[7]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># Writing to XYZ files (easy to open with many molecule file viewers)</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.xyz</span> <span class="kn">import</span> <span class="n">XYZ</span>
-<span class="n">xyz</span> <span class="o">=</span> <span class="n">XYZ</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-<span class="n">xyz</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="s2">&quot;methane.xyz&quot;</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Openbabel-interface">Openbabel interface<a class="anchor-link" href="#Openbabel-interface">&#182;</a></h2>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>This section demonstrates pymatgen's integration with openbabel.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[8]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="kn">from</span> <span class="nn">pymatgen.io.babel</span> <span class="kn">import</span> <span class="n">BabelMolAdaptor</span>
-<span class="kn">import</span> <span class="nn">pybel</span> <span class="kn">as</span> <span class="nn">pb</span>
-<span class="n">a</span> <span class="o">=</span> <span class="n">BabelMolAdaptor</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-<span class="c1"># Create a pybel.Molecule, which simplifies a lot of access</span>
-<span class="n">pm</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">Molecule</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">openbabel_mol</span><span class="p">)</span>
-<span class="c1"># Print canonical SMILES representation (unique and comparable).</span>
-<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Canonical SMILES = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pm</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;can&quot;</span><span class="p">)))</span>
-<span class="c1"># Print Inchi representation</span>
-<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Inchi= {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pm</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;inchi&quot;</span><span class="p">)))</span>
-<span class="c1"># pb.outformats provides a listing of available formats. </span>
-<span class="c1"># Let&#39;s do a write to the commonly used PDB file.</span>
-<span class="n">pm</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;pdb&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;methane.pdb&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">structures</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">])</span>
 </pre></div>
 
 </div>
@@ -12097,10 +12062,25 @@ Sites (5)
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>Canonical SMILES = C	
-
-Inchi= InChI=1S/CH4/h1H4
-
+<pre>Full Formula (Li8 O4)
+Reduced Formula: Li2O
+abc   :   4.610000   4.610000   4.610000
+angles:  90.000000  90.000000  90.000000
+Sites (12)
+  #  SP       a     b     c
+---  ----  ----  ----  ----
+  0  Li+   0.25  0.25  0.25
+  1  Li+   0.25  0.75  0.75
+  2  Li+   0.75  0.25  0.75
+  3  Li+   0.75  0.75  0.25
+  4  Li+   0.75  0.75  0.75
+  5  Li+   0.75  0.25  0.25
+  6  Li+   0.25  0.75  0.25
+  7  Li+   0.25  0.25  0.75
+  8  O2-   0     0     0
+  9  O2-   0     0.5   0.5
+ 10  O2-   0.5   0     0.5
+ 11  O2-   0.5   0.5   0
 </pre>
 </div>
 </div>
@@ -12111,338 +12091,16 @@ Inchi= InChI=1S/CH4/h1H4
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[9]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># Generating ethylene carbonate (SMILES obtained from Wikipedia)</span>
-<span class="c1"># And displaying the svg.</span>
-<span class="n">ec</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">readstring</span><span class="p">(</span><span class="s2">&quot;smi&quot;</span><span class="p">,</span> <span class="s2">&quot;C1COC(=O)O1&quot;</span><span class="p">)</span>
-<span class="n">ec</span><span class="o">.</span><span class="n">make3D</span><span class="p">()</span>
-<span class="kn">from</span> <span class="nn">IPython.core.display</span> <span class="kn">import</span> <span class="n">SVG</span><span class="p">,</span> <span class="n">display_svg</span>
-<span class="n">svg</span> <span class="o">=</span> <span class="n">SVG</span><span class="p">(</span><span class="n">ec</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;svg&quot;</span><span class="p">))</span>
-<span class="n">display_svg</span><span class="p">(</span><span class="n">svg</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span> 
 </pre></div>
 
 </div>
 </div>
 </div>
 
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-
-<div class="output_svg output_subarea ">
-<svg height="200px" id="topsvg" version="1.1" viewBox="0 0 100 100" width="200px" x="0" xmlns="http://www.w3.org/2000/svg" xmlns:cml="http://www.xml-cml.org/schema" xmlns:xlink="http://www.w3.org/1999/xlink" y="0">
-<title> - Open Babel Depiction</title>
-<rect fill="white" height="100" width="100" x="0" y="0"/>
-<g transform="translate(0,0)">
-<svg font-family="sans-serif" height="100" stroke="rgb(0,0,0)" stroke-linecap="round" stroke-width="2" viewBox="0 0 221.89 187.549" width="100" x="0" y="0">
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="79.0" x2="53.3" y1="120.7" y2="129.0"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="77.1" x2="51.4" y1="115.0" y2="123.3"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="130.4" x2="155.1" y1="79.8" y2="68.8"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="130.4" x2="133.2" y1="79.8" y2="52.9"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="142.8" x2="160.8" y1="117.8" y2="137.9"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="142.8" x2="169.2" y1="117.8" y2="112.2"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="99.9" x2="78.0" y1="133.7" y2="117.8"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="78.0" x2="86.4" y1="117.8" y2="92.1"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="103.4" x2="130.4" y1="79.8" y2="79.8"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="130.4" x2="142.8" y1="79.8" y2="117.8"/>
-<line opacity="1.0" stroke="rgb(0,0,0)" stroke-width="2.0" x1="142.8" x2="120.9" y1="117.8" y2="133.7"/>
-<text fill="rgb(255,12,12)" font-size="16" stroke="rgb(255,12,12)" stroke-width="1" x="104.402940" y="149.334547">O</text>
-<text fill="rgb(255,12,12)" font-size="16" stroke="rgb(255,12,12)" stroke-width="1" x="34.000000" y="138.183816">O</text>
-<text fill="rgb(255,12,12)" font-size="16" stroke="rgb(255,12,12)" stroke-width="1" x="84.402940" y="87.780876">O</text>
-<text fill="rgb(191,191,191)" font-size="16" stroke="rgb(191,191,191)" stroke-width="1" x="160.944759" y="71.511410">H</text>
-<text fill="rgb(191,191,191)" font-size="16" stroke="rgb(191,191,191)" stroke-width="1" x="128.584079" y="48.000000">H</text>
-<text fill="rgb(191,191,191)" font-size="16" stroke="rgb(191,191,191)" stroke-width="1" x="163.528844" y="155.548929">H</text>
-<text fill="rgb(191,191,191)" font-size="16" stroke="rgb(191,191,191)" stroke-width="1" x="175.889524" y="117.506669">H</text>
-</svg>
-</g>
-<text fill="black" font-family="sans-serif" font-size="18.000000" x="10.000000" y="20.000000"/>
-</svg>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Input/Output">Input/Output<a class="anchor-link" href="#Input/Output">&#182;</a></h2>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Pymatgen has built-in support for the XYZ and Gaussian, NWchem file formats. It also has support for most other file formats if you have openbabel with Python bindings installed.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[10]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;xyz&quot;</span><span class="p">))</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;g09&quot;</span><span class="p">))</span>
-<span class="k">print</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;pdb&quot;</span><span class="p">))</span> <span class="c1">#Needs Openbabel.</span>
-
-<span class="n">mol</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;methane.xyz&quot;</span><span class="p">)</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;methane.pdb&quot;</span><span class="p">)</span> <span class="c1">#Needs Openbabel.</span>
-
-<span class="k">print</span><span class="p">(</span><span class="n">Molecule</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;methane.pdb&quot;</span><span class="p">))</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>5
-H4 C1
-C 0.000000 0.000000 0.000000
-H 0.000000 0.000000 1.089000
-H 1.026719 0.000000 -0.363000
-H -0.513360 -0.889165 -0.363000
-H -0.513360 0.889165 -0.363000
-#P HF/6-31G(d) 
-
-H4 C1
-
-0 1
-C
-H 1 B1
-H 1 B2 2 A2
-H 1 B3 2 A3 3 D3
-H 1 B4 2 A4 4 D4
-
-B1=1.089000
-B2=1.089000
-A2=109.471221
-B3=1.089000
-A3=109.471213
-D3=120.000017
-B4=1.089000
-A4=109.471213
-D4=119.999966
-
-
-
-
-COMPND    UNNAMED
-AUTHOR    GENERATED BY OPEN BABEL 2.4.1
-HETATM    1  C   UNL     1       0.000   0.000   0.000  1.00  0.00           C  
-HETATM    2  H   UNL     1       0.000   0.000   1.089  1.00  0.00           H  
-HETATM    3  H   UNL     1       1.027   0.000  -0.363  1.00  0.00           H  
-HETATM    4  H   UNL     1      -0.513  -0.889  -0.363  1.00  0.00           H  
-HETATM    5  H   UNL     1      -0.513   0.889  -0.363  1.00  0.00           H  
-CONECT    1    3    4    5    2                                       
-CONECT    2    1                                                      
-CONECT    3    1                                                      
-CONECT    4    1                                                      
-CONECT    5    1                                                      
-MASTER        0    0    0    0    0    0    0    0    5    0    5    0
-END
-
-Full Formula (H4 C1)
-Reduced Formula: H4C
-Charge = 0, Spin Mult = 1
-Sites (5)
-0 C     0.000000     0.000000     0.000000
-1 H     0.000000     0.000000     1.089000
-2 H     1.027000     0.000000    -0.363000
-3 H    -0.513000    -0.889000    -0.363000
-4 H    -0.513000     0.889000    -0.363000
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>For more fine-grained control over output, you can use the underlying IO classes Gaussian and Nwchem, two commonly used computational chemistry programs.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[11]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="kn">from</span> <span class="nn">pymatgen.io.gaussian</span> <span class="kn">import</span> <span class="n">GaussianInput</span>
-<span class="n">gau</span> <span class="o">=</span> <span class="n">GaussianInput</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">spin_multiplicity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;methane&quot;</span><span class="p">,</span> 
-                    <span class="n">functional</span><span class="o">=</span><span class="s2">&quot;B3LYP&quot;</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-31G(d)&quot;</span><span class="p">,</span> 
-                    <span class="n">route_parameters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Opt&#39;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;SCF&quot;</span><span class="p">:</span> <span class="s2">&quot;Tight&quot;</span><span class="p">},</span>
-                    <span class="n">link0_parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;%mem&quot;</span><span class="p">:</span> <span class="s2">&quot;1000MW&quot;</span><span class="p">})</span>
-<span class="k">print</span><span class="p">(</span><span class="n">gau</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>%mem=1000MW
-#P B3LYP/6-31G(d) Opt SCF=Tight
-
-methane
-
-0 1
-C
-H 1 B1
-H 1 B2 2 A2
-H 1 B3 2 A3 3 D3
-H 1 B4 2 A4 4 D4
-
-B1=1.089000
-B2=1.089000
-A2=109.471221
-B3=1.089000
-A3=109.471213
-D3=120.000017
-B4=1.089000
-A4=109.471213
-D4=119.999966
-
-
-
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[12]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span></span><span class="c1"># A standard relaxation + SCF energy nwchem calculation input file for methane.</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.nwchem</span> <span class="kn">import</span> <span class="n">NwTask</span><span class="p">,</span> <span class="n">NwInput</span>
-<span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span>
-                    <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-31G&quot;</span><span class="p">),</span>
-    <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;freq&quot;</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span>
-                    <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-31G&quot;</span><span class="p">),</span>
-    <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span>
-                    <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-311G&quot;</span><span class="p">),</span>
-<span class="p">]</span>
-<span class="n">nwi</span> <span class="o">=</span> <span class="n">NwInput</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">geometry_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">,</span> <span class="s2">&quot;angstroms&quot;</span><span class="p">])</span>
-<span class="k">print</span><span class="p">(</span><span class="n">nwi</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>geometry units angstroms
- C 0.0 0.0 0.0
- H 0.0 0.0 1.089
- H 1.026719 0.0 -0.363
- H -0.51336 -0.889165 -0.363
- H -0.51336 0.889165 -0.363
-end
-
-title &#34;H4C1 dft optimize&#34;
-charge 0
-basis cartesian
- C library &#34;6-31G&#34;
- H library &#34;6-31G&#34;
-end
-dft
- mult 1
- xc b3lyp
-end
-task dft optimize
-
-title &#34;H4C1 dft freq&#34;
-charge 0
-basis cartesian
- C library &#34;6-31G&#34;
- H library &#34;6-31G&#34;
-end
-dft
- mult 1
- xc b3lyp
-end
-task dft freq
-
-title &#34;H4C1 dft energy&#34;
-charge 0
-basis cartesian
- C library &#34;6-311G&#34;
- H library &#34;6-311G&#34;
-end
-dft
- mult 1
- xc b3lyp
-end
-task dft energy
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="This-concludes-the-demo-on-pymatgen's-basic-capabilities-for-molecules.">This concludes the demo on pymatgen's basic capabilities for molecules.<a class="anchor-link" href="#This-concludes-the-demo-on-pymatgen's-basic-capabilities-for-molecules.">&#182;</a></h2>
-</div>
-</div>
 </div>
     </div>
   </div>

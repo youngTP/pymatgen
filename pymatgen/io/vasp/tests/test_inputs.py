@@ -738,8 +738,12 @@ class PotcarTest(unittest.TestCase):
         self.assertEqual(p[0].functional_class, 'LDA')
         self.assertEqual(p[1].functional_class, 'LDA')
 
+    def test_pickle(self):
+        pickle.dumps(self.potcar)
+
     def tearDown(self):
         SETTINGS["PMG_DEFAULT_FUNCTIONAL"] = "PBE"
+
 
 class VaspInputTest(unittest.TestCase):
 
@@ -787,6 +791,6 @@ class VaspInputTest(unittest.TestCase):
         vinput = VaspInput.from_dict(d)
         self.assertIn("CONTCAR.Li2O", vinput)
 
+
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
