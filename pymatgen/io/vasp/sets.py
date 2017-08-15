@@ -447,6 +447,17 @@ class MPHSERelaxSet(DictSet):
             structure, MPHSERelaxSet.CONFIG, **kwargs)
         self.kwargs = kwargs
 
+class MPScanRelaxSet(DictSet):
+    """
+    Same as the MPRelaxSet, but with HSE parameters.
+    """
+    CONFIG = loadfn(os.path.join(MODULE_DIR, "MPScanRelaxSet.yaml"))
+
+    def __init__(self, structure, **kwargs):
+        super(MPScanRelaxSet, self).__init__(
+            structure, MPScanRelaxSet.CONFIG, **kwargs)
+        self.kwargs = kwargs
+
 
 class MPStaticSet(MPRelaxSet):
 
@@ -1042,6 +1053,77 @@ class MVLElasticSet(MPRelaxSet):
         self.config_dict["INCAR"].update({"IBRION": 6, "NFREE": 2,
                                           "POTIM": potim})
         self.config_dict["INCAR"].pop("NPAR", None)
+
+
+class MPScanSlabSet(MPScanRelaxSet):
+    """
+    Class for writing a set of slab vasp runs,
+    including both slabs (along the c direction) and orient unit cells (bulk),
+    to ensure the same KPOINTS, POTCAR and INCAR criterion.
+
+    Args:
+        k_product: default to 50, kpoint number * length for a & b directions,
+            also for c direction in bulk calculations
+        bulk (bool): Set to True for bulk calculation. Defaults to False.
+        **kwargs:
+            Other kwargs supported by :class:`DictSet`.
+    """
+    def __init__(self, structure, k_product=50, bulk=False, 
+                 auto_dipole=False, **kwargs):
+        super(MPScanSlabSet, self).__init__(structure, **kwargs)
+        self.structure = structure
+        self.k_product = k_product
+        self.bulk = bulk
+        self.auto_dipole = auto_dipole
+        self.kwargs = kwargs
+
+        slab_incar = {"EDIFF": 1e-6, "EDIFFG": -0.01, "ENCUT": 400,
+                      "ISMEAR": 0, "SIGMA": 0.05, "ISIF": 3}
+        if not self.bulk:
+            slab_incar["ISIF"] = 2
+            slab_incar["AMIN"] = 0.01
+            slab_incar["AMIX"] = 0.2
+            slab_incar["BMIX"] = 0.001
+            slab_incar["NELMIN"] = 8
+            if self.auto_dipole:
+                weights = [s.species_and_occu.weight for s in structure]
+                center_of_mass = np.average(structure.frac_coords,
+                                            weights=weights, axis=0)
+                slab_incar["IDIPOL"] = 3
+                slab_incar["LDIPOL"] = True
+                slab_incar["DIPOL"] = center_of_mass
+
+        self.config_dict["INCAR"].update(slab_incar)
+
+    @property
+    def kpoints(self):
+        """
+        k_product, default to 50, is kpoint number * length for a & b
+            directions, also for c direction in bulk calculations
+        Automatic mesh & Gamma is the default setting.
+        """
+
+        # To get input sets, the input structure has to has the same number
+        # of required parameters as a Structure object (ie. 4). Slab
+        # attributes aren't going to affect the VASP inputs anyways so
+        # converting the slab into a structure should not matter
+
+        kpt = super(MVLSlabSet, self).kpoints
+        kpt.comment = "Automatic mesh"
+        kpt.style = 'Gamma'
+
+        # use k_product to calculate kpoints, k_product = kpts[0][0] * a
+        abc = self.structure.lattice.abc
+        kpt_calc = [int(self.k_product/abc[0]+0.5),
+                    int(self.k_product/abc[1]+0.5), 1]
+        self.kpt_calc = kpt_calc
+        # calculate kpts (c direction) for bulk. (for slab, set to 1)
+        if self.bulk:
+            kpt_calc[2] = int(self.k_product/abc[2]+0.5)
+
+        kpt.kpts[0] = kpt_calc
+
+        return kpt
 
 
 class MVLSlabSet(MPRelaxSet):
