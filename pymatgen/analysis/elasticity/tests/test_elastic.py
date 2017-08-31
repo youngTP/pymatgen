@@ -312,8 +312,21 @@ class ElasticTensorExpansionTest(PymatgenTest):
         strain_revert4 = self.exp_cu_4.get_strain_from_stress(stress4)
         self.assertArrayAlmostEqual(strain, strain_revert4, decimal=2)
 
-    def test_get_yield_stress(self):
-        ys = self.exp_cu_4.get_yield_stress([1, 0, 0])
+    def test_solve_yield_stress(self):
+        ys = self.exp_cu_4.solve_yield_stress([1, 0, 0], 3)
+        self.assertAlmostEqual(ys, 6.4957, places=3)
+        ys_ez = self.exp_cu_4.solve_yield_stress([1, 0, 0], 3, tol=0.01)
+        self.assertAlmostEqual(ys_ez, 6.5, places=1)
+
+    def test_generate_yield_surface(self):
+        bz, ys = self.exp_cu.generate_yield_surface(self.cu)
+        max_ys = np.max(ys)
+        max_dir = bz[np.argmax(ys)]
+        self.assertAlmostEqual(max_ys, 10.152621, places=5)
+        self.assertArrayAlmostEqual([0.57735027,  0.57735027,  0.57735027], max_dir) 
+
+    def test_plot_ys(self):
+        ax = self.exp_cu.plot_yield_surface(self.cu)
 
 
 class NthOrderElasticTensorTest(PymatgenTest):

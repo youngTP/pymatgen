@@ -9,10 +9,14 @@ from pymatgen.analysis.elasticity.tensors import Tensor, \
     TensorCollection, get_uvec
 from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.analysis.elasticity.strain import Strain
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list
+from pymatgen.util.plotting import get_ax_fig_plt
 from pymatgen.core.units import Unit
 from scipy.misc import factorial
 from scipy.integrate import quad
-from scipy.optimize import root
+from scipy.optimize import root, brentq
+import matplotlib.tri as mtri
 from monty.serialization import loadfn
 from collections import OrderedDict
 import numpy as np
@@ -799,19 +803,94 @@ class ElasticTensorExpansion(TensorCollection):
         sym_wallace = self.get_symmetric_wallace_tensor(stress)
         return np.linalg.det(sym_wallace.voigt)
 
-    def get_yield_stress(self, n):
+    def solve_yield_stress(self, n, guess, **kwargs):
         """
-        Gets the yield stress for a given direction
-
+        Finds the stability criteria zero for
+        a given guess
+        
         Args:
             n (3x1 array-like): direction for which to find the
                 yield stress
+            guess (float): guess for applied normal stress for
+                root finding
         """
-        # TODO: root finding could be more robust
-        comp = root(self.get_stability_criteria, -1, args=n)
-        tens = root(self.get_stability_criteria, 1, args=n)
-        return (comp.x, tens.x)
+        return root(self.get_stability_criteria, guess, args=n, **kwargs).x[0]
 
+    def generate_yield_surface(self, structure, resolution=10,
+                               ieee=True, guess = 5):
+        """
+        Finds the stability criteria zero for
+        a given guess
+        
+        Args:
+            structure (Structure): structure for which to
+                find the yield surface
+            resolution (int): resolution for irreducible bz
+            ieee (bool): whether to convert to ieee
+            guess (float): guess for the solver
+        """
+        if ieee:
+            tensor = self.convert_to_ieee(structure)
+            structure = SpacegroupAnalyzer(structure).get_refined_structure()
+        else:
+            tensor = self
+
+        # Get BZ vectors and create surface of unique unit vectors
+        bz = SpacegroupAnalyzer(structure).get_ir_reciprocal_mesh(
+                mesh=[resolution]*3)
+        recp = structure.lattice.reciprocal_lattice_crystallographic
+        vecs = np.array([recp.get_cartesian_coords(v[0]) for v in bz])
+        norms = np.linalg.norm(vecs, axis=1)
+        vecs = vecs[norms != 0] / norms[norms != 0][:, None]
+        bz_surf = []
+        for vec in vecs:
+            if not in_coord_list(bz_surf, vec):
+                bz_surf.append(vec)
+
+        # Solve yield criteria for each direction
+        ys = []
+        for vec in bz_surf:
+            ys.append(tensor.solve_yield_stress(vec, guess))
+
+        return np.array(bz_surf), np.array(ys)
+
+    def plot_yield_surface(self, structure, resolution=10, ieee=True, 
+                           guess=5, ax=None, **kwargs):
+        """
+        Simple plotting tool for the yield surface
+
+        Args:
+            structure (Structure): structure for which to 
+                find the yield surface
+            resolution (int): resolution for irreducible bz
+            ieee (bool): flag to convert to ieee
+            guess (float): guess for the solver
+            ax (Axis): matplotlib axis object
+            **kwargs (kwargs): kwargs for ax.tricontourf
+        """
+        bz, ys = self.generate_yield_surface(structure, resolution=resolution,
+                                             ieee=ieee, guess=guess)
+        ax, fig, plt = get_ax_fig_plt(ax=ax)
+        # Project into yz plane
+        x, y, z = np.transpose(bz)
+        tri = mtri.Triangulation(y, z)
+        hm = np.mean(np.array(ys)[tri.triangles], axis=1)
+        ctf = ax.tricontourf(y, z, tri.triangles, ys, **kwargs)
+        cbar = plt.colorbar(ctf)
+        cbar.set_label('Yield stress')
+        ax.set_xlabel("y")
+        ax.set_ylabel("z")
+
+        # Label low-index planes
+        mis = list(itertools.product([-1, 0, 1], repeat=3))
+        mis.remove((0, 0, 0))
+        dists = np.linalg.norm(np.diff(bz[tri.edges], axis=1), axis=2)
+        atol = np.percentile(dists, 90) # rough estimate of neighbor dist
+        for mi in mis:
+            miv = np.array(mi) / np.linalg.norm(mi)
+            if in_coord_list(bz, miv, atol=atol):
+                ax.text(miv[1], miv[2], str(mi))
+        return ax
 
 #TODO: abstract this for other tensor fitting procedures
 def diff_fit(strains, stresses, eq_stress=None, order=2, tol=1e-10):
