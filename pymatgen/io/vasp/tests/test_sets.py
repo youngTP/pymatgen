@@ -40,6 +40,7 @@ class MITMPRelaxSetTest(unittest.TestCase):
         self.mpset = MPRelaxSet(self.structure)
 
     def test_poscar(self):
+
         structure = Structure(self.lattice, ["Fe", "Mn"], self.coords)
         mitparamset = MITRelaxSet(structure, sort_structure=False)
         s_unsorted = mitparamset.poscar.structure
