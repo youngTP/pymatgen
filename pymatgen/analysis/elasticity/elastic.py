@@ -15,7 +15,7 @@ from pymatgen.util.plotting import get_ax_fig_plt
 from pymatgen.core.units import Unit
 from scipy.misc import factorial
 from scipy.integrate import quad
-from scipy.optimize import root, brentq
+from scipy.optimize import root
 import matplotlib.tri as mtri
 from monty.serialization import loadfn
 from collections import OrderedDict
