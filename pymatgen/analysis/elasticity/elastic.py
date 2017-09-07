@@ -847,10 +847,24 @@ class ElasticTensorExpansion(TensorCollection):
             if not in_coord_list(bz_surf, vec):
                 bz_surf.append(vec)
 
-        # Solve yield criteria for each direction
+        # Sort surface by distance to something that looks like a corner
+        bz_surf = np.array(bz_surf)
+        #corner_idx = np.argmin(bz_surf, axis=0)[0]
+        distances = np.linalg.norm(bz_surf - bz_surf[0], axis=1)
+        bz_surf = bz_surf[np.argsort(distances)]
+        # get neighbors to update guesses in iteration
+        x, y, z = np.transpose(bz_surf)
+        triangles = mtri.Triangulation(x, y).triangles
+        all_neighbors = [list(set(triangles[np.any(triangles==i, axis=1)].ravel()))
+                         for i in range(len(bz_surf))]
+
+        # Solve yield criteria for each direction and update guess for each
+        # iteration to improve smoothness
         ys = []
-        for vec in bz_surf:
-            ys.append(tensor.solve_yield_stress(vec, guess))
+        guesses = guess * np.ones(len(bz_surf))
+        for n, vec in enumerate(bz_surf):
+            ys.append(tensor.solve_yield_stress(vec, guesses[n]))
+            guesses[all_neighbors[n]] = ys[-1]
 
         return np.array(bz_surf), np.array(ys)
 
