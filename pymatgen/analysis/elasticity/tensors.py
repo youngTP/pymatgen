@@ -662,6 +662,21 @@ class SquareTensor(Tensor):
         return polar(self, side=side)
 
 
+def get_ieee_structure(structure):
+    """
+    Helper function to set a given structure according
+    to the IEEE standard.  Note that this does not
+    resize or reshape the cell (e. g. from primitive
+    to conventional, it simply rotates it
+    such that it has the same setting
+    """
+    rot = Tensor.get_ieee_rotation(structure)
+    op = SymmOp.from_rotation_and_translation(rot)
+    new_struct = structure.copy()
+    new_struct.apply_operation(op)
+    return new_struct
+
+
 def get_uvec(vec):
     """ Gets a unit vector parallel to input vector"""
     l = np.linalg.norm(vec)

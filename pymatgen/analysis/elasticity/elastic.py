@@ -10,7 +10,7 @@ from pymatgen.analysis.elasticity.tensors import Tensor, \
 from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.analysis.elasticity.strain import Strain
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list
+from pymatgen.util.coord import in_coord_list, find_in_coord_list
 from pymatgen.util.plotting import get_ax_fig_plt
 from pymatgen.core.units import Unit
 from scipy.misc import factorial
@@ -88,6 +88,11 @@ class NthOrderElasticTensor(Tensor):
         """
         Calculates the elastic energy density due to a strain
         """
+        strain = np.array(strain)
+        if strain.shape == (6,):
+            strain = Strain.from_voigt(strain)
+        assert strain.shape == (3, 3), "Strain must be 3x3 or voigt-notation"
+
         e_density = np.sum(self.calculate_stress(strain)*strain) / self.order
         if convert_GPa_to_eV:
             e_density *= self.GPa_to_eV_A3  # Conversion factor for GPa to eV/A^3
