@@ -654,7 +654,7 @@ class SlabGenerator(object):
                 usually sufficient.
             reorient_lattice (bool): reorients the lattice parameters such that
                 the c direction is the third vector of the lattice matrix
-            set_layers_as_props (bool): whether or not to set the layer
+            label_layers (bool): whether or not to set the layer
                 number as a site_property
         """
         latt = initial_structure.lattice
