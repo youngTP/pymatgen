@@ -613,7 +613,8 @@ class SlabGenerator(object):
 
     def __init__(self, initial_structure, miller_index, min_slab_size,
                  min_vacuum_size, lll_reduce=False, center_slab=False,
-                 primitive=True, max_normal_search=None, reorient_lattice=True):
+                 primitive=True, max_normal_search=None, reorient_lattice=True,
+                 label_layers=False):
         """
         Calculates the slab scale factor and uses it to generate a unit cell
         of the initial structure that has been oriented by its miller index.
@@ -653,7 +654,8 @@ class SlabGenerator(object):
                 usually sufficient.
             reorient_lattice (bool): reorients the lattice parameters such that
                 the c direction is the third vector of the lattice matrix
-
+            set_layers_as_props (bool): whether or not to set the layer
+                number as a site_property
         """
         latt = initial_structure.lattice
         miller_index = reduce_vector(miller_index)
@@ -743,6 +745,7 @@ class SlabGenerator(object):
         a, b, c = self.oriented_unit_cell.lattice.matrix
         self._proj_height = abs(np.dot(normal, c))
         self.reorient_lattice = reorient_lattice
+        self.label_layers = label_layers
 
     def get_slab(self, shift=0, tol=0.1, energy=None):
         """
@@ -769,6 +772,10 @@ class SlabGenerator(object):
         species = self.oriented_unit_cell.species_and_occu
         props = self.oriented_unit_cell.site_properties
         props = {k: v * nlayers_slab for k, v in props.items()}
+        if self.label_layers:
+            layers = itertools.chain.from_iterable(
+                [[i]*len(species) for i in range(nlayers)])
+            props.update({"layer": list(layers)})
         frac_coords = self.oriented_unit_cell.frac_coords
         frac_coords = np.array(frac_coords) +\
                       np.array([0, 0, -shift])[None, :]
@@ -1172,7 +1179,8 @@ def get_symmetrically_distinct_miller_indices(structure, max_index):
 def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
                        bonds=None, tol=1e-3, max_broken_bonds=0,
                        lll_reduce=False, center_slab=False, primitive=True,
-                       max_normal_search=None, symmetrize=False, repair=False):
+                       max_normal_search=None, symmetrize=False, repair=False,
+                       label_layers=False):
     """
     A function that finds all different slabs up to a certain miller index.
     Slabs oriented under certain Miller indices that are equivalent to other
@@ -1224,6 +1232,7 @@ def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
             slabs are equivalent.
         repair (bool): Whether to repair terminations with broken bonds
             or just omit them
+        label_layers (bool): Whether to add layer number as site property
     """
     all_slabs = []
 
@@ -1232,7 +1241,8 @@ def generate_all_slabs(structure, max_index, min_slab_size, min_vacuum_size,
         gen = SlabGenerator(structure, miller, min_slab_size,
                             min_vacuum_size, lll_reduce=lll_reduce,
                             center_slab=center_slab, primitive=primitive,
-                            max_normal_search=max_normal_search)
+                            max_normal_search=max_normal_search, 
+                            label_layers=label_layers)
         slabs = gen.get_slabs(bonds=bonds, tol=tol, symmetrize=symmetrize,
                               max_broken_bonds=max_broken_bonds, repair=repair)
         if len(slabs) > 0:

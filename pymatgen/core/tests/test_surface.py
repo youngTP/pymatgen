@@ -469,5 +469,11 @@ class MillerIndexFinderTests(PymatgenTest):
         # termination for each distinct Miller _index
         self.assertEqual(len(miller_list), len(all_miller_list))
 
+        # Check label layers
+        labelled = generate_all_slabs(self.lifepo4, 1, 10, 10, tol=0.1,
+                                      label_layers=True)
+        self.assertEqual(labelled[0][0].properties['layer'], 0)
+        self.assertEqual(labelled[0][-1].properties['layer'], 2)
+
 if __name__ == "__main__":
     unittest.main()
