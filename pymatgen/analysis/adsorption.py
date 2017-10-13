@@ -595,11 +595,7 @@ def reorient_z(structure):
     sop = get_rot(struct)
     struct.apply_operation(sop)
     return struct
-<<<<<<< HEAD
- 
-=======
 
->>>>>>> origin/master
 
 # Get color dictionary
 colors = loadfn(os.path.join(os.path.dirname(vis.__file__),
