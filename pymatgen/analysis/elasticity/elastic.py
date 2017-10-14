@@ -13,6 +13,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.coord import in_coord_list, find_in_coord_list
 from pymatgen.util.plotting import get_ax_fig_plt
 from pymatgen.core.units import Unit
+from pymatgen.core.operations import SymmOp
 from scipy.misc import factorial
 from scipy.integrate import quad
 from scipy.optimize import root
@@ -719,19 +720,22 @@ class ElasticTensorExpansion(TensorCollection):
                              "supported for fourth-order and lower")
         ce_exp = [ElasticTensor(self[0]).compliance_tensor]
         einstring = "ijpq,pqrsuv,rskl,uvmn->ijklmn"
-        ce_exp.append(np.einsum(einstring, -ce_exp[-1], self[1],
-                                ce_exp[-1], ce_exp[-1]))
+        ce_exp.append(np.einsum(einstring, -ce_exp[0], self[1],
+                                ce_exp[0], ce_exp[0]))
+        # include the fourth-order dependent and independent
+        # portion of compliance expansion
         if self.order == 4:
-            # Four terms in the Fourth-Order compliance tensor
             einstring_1 = "pqab,cdij,efkl,ghmn,abcdefgh"
             tensors_1 = [ce_exp[0]]*4 + [self[-1]]
             temp = -np.einsum(einstring_1, *tensors_1)
-            einstring_2 = "pqab,abcdef,cdijmn,efkl"
-            einstring_3 = "pqab,abcdef,efklmn,cdij"
-            einstring_4 = "pqab,abcdef,cdijkl,efmn"
-            for es in [einstring_2, einstring_3, einstring_4]:
-                temp -= np.einsum(es, ce_exp[0], self[-2], ce_exp[1], ce_exp[0])
-            ce_exp.append(temp)
+        else:
+            temp = np.zeros([3]*8)
+        einstring_2 = "pqab,abcdef,cdijmn,efkl"
+        einstring_3 = "pqab,abcdef,efklmn,cdij"
+        einstring_4 = "pqab,abcdef,cdijkl,efmn"
+        for es in [einstring_2, einstring_3, einstring_4]:
+            temp -= np.einsum(es, ce_exp[0], self[1], ce_exp[1], ce_exp[0])
+        ce_exp.append(temp)
         return TensorCollection(ce_exp)
 
     def get_strain_from_stress(self, stress):
@@ -821,6 +825,7 @@ class ElasticTensorExpansion(TensorCollection):
         """
         return root(self.get_stability_criteria, guess, args=n, **kwargs).x[0]
 
+    # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10,
                                ieee=True, guess = 5):
         """
@@ -873,8 +878,37 @@ class ElasticTensorExpansion(TensorCollection):
 
         return np.array(bz_surf), np.array(ys)
 
-    def plot_yield_surface(self, structure, resolution=10, ieee=True, 
-                           guess=5, ax=None, **kwargs):
+    # TODO: make this not dependent on ys or able to used cached version
+    def get_brittleness(self, n, stress):
+        """
+        Gets the brittleness criterion for a uniaxial load
+        """
+        # Get rotation
+        test = self[0].einsum_sequence([n]*4)
+        rot_axis = np.cross([0, 0, 1], n)
+        angle = -np.arccos(np.dot([0, 0, 1], n))
+        rotation = SymmOp.from_axis_angle_and_translation(
+                rot_axis, angle, angle_in_radians=True)
+        new = self.transform(rotation)
+        test_2 = new[0].einsum_sequence([[0, 0, 1]]*4)
+        assert np.allclose(test, test_2)
+        tau = np.zeros((3, 3))
+        tau[2, 2] = stress
+        wallace = new.get_symmetric_wallace_tensor(tau)
+        # Get eigvals/eigvecs, zip eigvals and eigvecs, sort by eigval
+        eigs = np.linalg.eigh(wallace.voigt)
+        eigs = zip(eigs[0].tolist(), eigs[1].tolist())
+        eigs = sorted(eigs, key=lambda x: x[0])
+        assert eigs[0][0] < 1e-5, "No failure mode detected"
+        eigvec = get_uvec(eigs[0][1])
+        """
+        eigstrain = Tensor.from_voigt(eigvec)
+        brittleness = eigstrain.einsum_sequence([n, n])
+        blargh
+        """
+        return eigvec[2]
+    
+    def plot_surface(self, vecs, values, ax=None, **kwargs):
         """
         Simple plotting tool for the yield surface
 
@@ -887,14 +921,13 @@ class ElasticTensorExpansion(TensorCollection):
             ax (Axis): matplotlib axis object
             **kwargs (kwargs): kwargs for ax.tricontourf
         """
-        bz, ys = self.generate_yield_surface(structure, resolution=resolution,
-                                             ieee=ieee, guess=guess)
         ax, fig, plt = get_ax_fig_plt(ax=ax)
+        # TODO: refactor stereographic projection
         # Project into yz plane
-        x, y, z = np.transpose(bz)
+        x, y, z = np.transpose(vecs)
         tri = mtri.Triangulation(y, z)
-        hm = np.mean(np.array(ys)[tri.triangles], axis=1)
-        ctf = ax.tricontourf(y, z, tri.triangles, ys, **kwargs)
+        hm = np.mean(np.array(values)[tri.triangles], axis=1)
+        ctf = ax.tricontourf(y, z, tri.triangles, values, **kwargs)
         cbar = plt.colorbar(ctf)
         cbar.set_label('Yield stress')
         ax.set_xlabel("y")
@@ -903,11 +936,11 @@ class ElasticTensorExpansion(TensorCollection):
         # Label low-index planes
         mis = list(itertools.product([-1, 0, 1], repeat=3))
         mis.remove((0, 0, 0))
-        dists = np.linalg.norm(np.diff(bz[tri.edges], axis=1), axis=2)
+        dists = np.linalg.norm(np.diff(vecs[tri.edges], axis=1), axis=2)
         atol = np.percentile(dists, 90) # rough estimate of neighbor dist
         for mi in mis:
             miv = np.array(mi) / np.linalg.norm(mi)
-            if in_coord_list(bz, miv, atol=atol):
+            if in_coord_list(vecs, miv, atol=atol):
                 ax.text(miv[1], miv[2], str(mi))
         return ax
 

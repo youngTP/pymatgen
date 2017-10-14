@@ -287,10 +287,10 @@ class ElasticTensorExpansionTest(PymatgenTest):
     def test_get_compliance_expansion(self):
         ce_exp = self.exp_cu.get_compliance_expansion()
         et_comp = ElasticTensorExpansion(ce_exp)
-        strain_orig = Strain.from_voigt([0.01, 0, 0, 0, 0, 0])
+        strain_orig = Strain.from_voigt([0.03, 0, 0, 0, 0, 0])
         stress = self.exp_cu.calculate_stress(strain_orig)
         strain_revert = et_comp.calculate_stress(stress)
-        self.assertArrayAlmostEqual(strain_orig, strain_revert, decimal=4)
+        self.assertArrayAlmostEqual(strain_orig, strain_revert, decimal=3)
 
     def test_get_effective_ecs(self):
         # Ensure zero strain is same as SOEC
@@ -303,7 +303,7 @@ class ElasticTensorExpansionTest(PymatgenTest):
         self.assertArrayAlmostEqual(self.exp_cu[1].einsum_sequence([s]), diff)
 
     def test_get_strain_from_stress(self):
-        strain = Strain.from_voigt([0.05, 0, 0, 0, 0, 0])
+        strain = Strain.from_voigt([0.03, 0, 0, 0, 0, 0])
         stress3 = self.exp_cu.calculate_stress(strain)
         strain_revert3 = self.exp_cu.get_strain_from_stress(stress3)
         self.assertArrayAlmostEqual(strain, strain_revert3, decimal=2)
@@ -324,6 +324,14 @@ class ElasticTensorExpansionTest(PymatgenTest):
         max_dir = bz[np.argmax(ys)]
         self.assertAlmostEqual(max_ys, 10.152621, places=5)
         self.assertArrayAlmostEqual([0.57735027,  0.57735027,  0.57735027], max_dir) 
+
+    def test_get_brittleness(self):
+        # This is the yield stress
+        n = [1, 0, 0]
+        n = get_uvec(n)
+        ys = self.exp_cu.solve_yield_stress(n, guess=5)
+        brit = self.exp_cu.get_brittleness(n, ys)
+        blargh
 
     def test_plot_ys(self):
         ax = self.exp_cu.plot_yield_surface(self.cu)
