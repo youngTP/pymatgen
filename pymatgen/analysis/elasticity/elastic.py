@@ -728,14 +728,12 @@ class ElasticTensorExpansion(TensorCollection):
             einstring_1 = "pqab,cdij,efkl,ghmn,abcdefgh"
             tensors_1 = [ce_exp[0]]*4 + [self[-1]]
             temp = -np.einsum(einstring_1, *tensors_1)
-        else:
-            temp = np.zeros([3]*8)
-        einstring_2 = "pqab,abcdef,cdijmn,efkl"
-        einstring_3 = "pqab,abcdef,efklmn,cdij"
-        einstring_4 = "pqab,abcdef,cdijkl,efmn"
-        for es in [einstring_2, einstring_3, einstring_4]:
-            temp -= np.einsum(es, ce_exp[0], self[1], ce_exp[1], ce_exp[0])
-        ce_exp.append(temp)
+            einstring_2 = "pqab,abcdef,cdijmn,efkl"
+            einstring_3 = "pqab,abcdef,efklmn,cdij"
+            einstring_4 = "pqab,abcdef,cdijkl,efmn"
+            for es in [einstring_2, einstring_3, einstring_4]:
+                temp -= np.einsum(es, ce_exp[0], self[1], ce_exp[1], ce_exp[0])
+            ce_exp.append(temp)
         return TensorCollection(ce_exp)
 
     def get_strain_from_stress(self, stress):
