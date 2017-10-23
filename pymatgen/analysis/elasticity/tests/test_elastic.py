@@ -460,5 +460,21 @@ class DiffFitTest(PymatgenTest):
             self.assertArrayAlmostEqual(c2, c2_red, decimal=0)
             self.assertArrayAlmostEqual(c3, c3_red, decimal=-1)
 
+
+class PlotSurfaceTest(PymatgenTest):
+    def setUp(self):
+        pass
+
+    def test_stereographic_projection(self):
+        mesh = get_bz_mesh(self.get_structure('Si'))
+        get_stereographic_projection(mesh, normal=[1, 0, 0])
+
+    def test_get_rot(self):
+        pass
+
+    def test_get_bz_surface(self):
+        pass
+
+
 if __name__ == '__main__':
     unittest.main()
