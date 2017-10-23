@@ -274,12 +274,13 @@ class Tensor(np.ndarray):
         return vdict
 
     @classmethod
-    def from_voigt(cls, voigt_input):
+    def from_voigt(cls, voigt_input, **kwargs):
         """
         Constructor based on the voigt notation vector or matrix.
 
         Args: 
             voigt_input (array-like): voigt input for a given tensor
+            **kwargs: additional keyword arguments to constructor
         """
         voigt_input = np.array(voigt_input)
         rank = sum(voigt_input.shape) // 3
@@ -290,7 +291,7 @@ class Tensor(np.ndarray):
         this_voigt_map = t.get_voigt_dict(rank)
         for ind in this_voigt_map:
             t[ind] = voigt_input[this_voigt_map[ind]]
-        return cls(t)
+        return cls(t, **kwargs)
 
     @staticmethod
     def get_ieee_rotation(structure):
