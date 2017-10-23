@@ -16,7 +16,7 @@ from pymatgen.core.units import Unit
 from pymatgen.core.operations import SymmOp
 from scipy.misc import factorial
 from scipy.integrate import quad
-from scipy.optimize import root
+from scipy.optimize import root, minimize
 import matplotlib.tri as mtri
 from monty.serialization import loadfn
 from collections import OrderedDict
@@ -79,7 +79,7 @@ class NthOrderElasticTensor(Tensor):
         """
         strain = np.array(strain)
         if strain.shape == (6,):
-            strain = Strain.from_voigt(strain)
+            strain = Strain.from_voigt(strain, dfm_shape='symmetric')
         assert strain.shape == (3, 3), "Strain must be 3x3 or voigt-notation"
         stress_matrix = self.einsum_sequence([strain]*(self.order - 1)) \
                 / factorial(self.order - 1)
@@ -748,6 +748,14 @@ class ElasticTensorExpansion(TensorCollection):
             strain += compl.einsum_sequence([stress]*(n+1)) / factorial(n+1)
         return strain
 
+    def solve_strain_from_stress(self, stress, tol=1e-5):
+        guess = Strain(self.get_strain_from_stress(stress), dfm_shape='symmetric').voigt
+        def f(strain):
+            return np.linalg.norm(self.calculate_stress(strain) - stress)
+        result = minimize(f, guess, tol=tol)
+        out_strain = Strain.from_voigt(result.x, dfm_shape='symmetric')
+        return out_strain
+
     def get_effective_ecs(self, strain, order=2):
         """
         Returns the effective elastic constants
@@ -763,7 +771,7 @@ class ElasticTensorExpansion(TensorCollection):
             ec_sum += ecs.einsum_sequence([strain] * n) / factorial(n)
         return ec_sum
 
-    def get_wallace_tensor(self, tau):
+    def get_wallace_tensor(self, tau, solve=False):
         """
         Gets the Wallace Tensor for determining yield strength
         criteria.
@@ -777,7 +785,10 @@ class ElasticTensorExpansion(TensorCollection):
                    np.einsum("nl,km->klmn", tau, np.eye(3)) +
                    np.einsum("kn,lm->klmn", tau, np.eye(3)) +
                    -2*np.einsum("kl,mn->klmn", tau, np.eye(3)))
-        strain = self.get_strain_from_stress(tau)
+        if solve:
+            strain = self.solve_strain_from_stress(tau)
+        else:
+            strain = self.get_strain_from_stress(tau)
         b += self.get_effective_ecs(strain)
         return b
 
@@ -825,7 +836,7 @@ class ElasticTensorExpansion(TensorCollection):
 
     # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10,
-                               ieee=True, guess = 5):
+                               ieee=True, guess = 5, verbose=False):
         """
         Finds the stability criteria zero for
         a given guess
@@ -844,7 +855,7 @@ class ElasticTensorExpansion(TensorCollection):
             tensor = self
 
         # Sort surface by distance to something that looks like a corner
-        bz_surf = get_bz_surf(structure)
+        bz_surf = get_bz_surface(structure, resolution)
         #corner_idx = np.argmin(bz_surf, axis=0)[0]
         distances = np.linalg.norm(bz_surf - bz_surf[0], axis=1)
         bz_surf = bz_surf[np.argsort(distances)]
@@ -859,76 +870,47 @@ class ElasticTensorExpansion(TensorCollection):
         ys = []
         guesses = guess * np.ones(len(bz_surf))
         for n, vec in enumerate(bz_surf):
+            if verbose:
+                print("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
             ys.append(tensor.solve_yield_stress(vec, guesses[n]))
             guesses[all_neighbors[n]] = ys[-1]
 
         return np.array(bz_surf), np.array(ys)
 
     # TODO: make this not dependent on ys or able to used cached version
-    def get_brittleness(self, n, stress):
+    def get_brittleness(self, n, stress, mode='rotate'):
         """
         Gets the brittleness criterion for a uniaxial load
         """
-        # Get rotation
-        test = self[0].einsum_sequence([n]*4)
-        rot_axis = np.cross([0, 0, 1], n)
-        angle = -np.arccos(np.dot([0, 0, 1], n))
-        rotation = SymmOp.from_axis_angle_and_translation(
-                rot_axis, angle, angle_in_radians=True)
-        new = self.transform(rotation)
-        test_2 = new[0].einsum_sequence([[0, 0, 1]]*4)
-        assert np.allclose(test, test_2)
-        tau = np.zeros((3, 3))
-        tau[2, 2] = stress
-        wallace = new.get_symmetric_wallace_tensor(tau)
+        if mode is 'rotate':
+            # Get rotation
+            test = self[0].einsum_sequence([n]*4)
+            rot_axis = np.cross([0, 0, 1], n)
+            angle = -np.arccos(np.dot([0, 0, 1], n))
+            rotation = SymmOp.from_axis_angle_and_translation(
+                    rot_axis, angle, angle_in_radians=True)
+            new = self.transform(rotation)
+            test_2 = new[0].einsum_sequence([[0, 0, 1]]*4)
+            assert np.allclose(test, test_2)
+            tau = np.zeros((3, 3))
+            tau[2, 2] = stress
+            wallace = new.get_symmetric_wallace_tensor(tau)
+            dotvec = [0, 0, 1]
+        else:
+            # Second method
+            tau = stress * np.outer(n, n)
+            wallace = self.get_symmetric_wallace_tensor(tau)
+            dotvec = n
         # Get eigvals/eigvecs, zip eigvals and eigvecs, sort by eigval
         eigs = np.linalg.eigh(wallace.voigt)
         eigs = zip(eigs[0].tolist(), eigs[1].tolist())
         eigs = sorted(eigs, key=lambda x: x[0])
         assert eigs[0][0] < 1e-5, "No failure mode detected"
         eigvec = get_uvec(eigs[0][1])
-        """
-        eigstrain = Tensor.from_voigt(eigvec)
-        brittleness = eigstrain.einsum_sequence([n, n])
-        blargh
-        """
-        return eigvec[2]
-    
-    def plot_surface(self, vecs, values, ax=None, **kwargs):
-        """
-        Simple plotting tool for the yield surface
-
-        Args:
-            structure (Structure): structure for which to 
-                find the yield surface
-            resolution (int): resolution for irreducible bz
-            ieee (bool): flag to convert to ieee
-            guess (float): guess for the solver
-            ax (Axis): matplotlib axis object
-            **kwargs (kwargs): kwargs for ax.tricontourf
-        """
-        ax, fig, plt = get_ax_fig_plt(ax=ax)
-        # TODO: refactor stereographic projection
-        # Project into yz plane
-        x, y, z = np.transpose(vecs)
-        tri = mtri.Triangulation(y, z)
-        hm = np.mean(np.array(values)[tri.triangles], axis=1)
-        ctf = ax.tricontourf(y, z, tri.triangles, values, **kwargs)
-        cbar = plt.colorbar(ctf)
-        cbar.set_label('Yield stress')
-        ax.set_xlabel("y")
-        ax.set_ylabel("z")
-
-        # Label low-index planes
-        mis = list(itertools.product([-1, 0, 1], repeat=3))
-        mis.remove((0, 0, 0))
-        dists = np.linalg.norm(np.diff(vecs[tri.edges], axis=1), axis=2)
-        atol = np.percentile(dists, 90) # rough estimate of neighbor dist
-        for mi in mis:
-            miv = np.array(mi) / np.linalg.norm(mi)
-            if in_coord_list(vecs, miv, atol=atol):
-                ax.text(miv[1], miv[2], str(mi))
-        return ax
+        # For some reason cholesky does some weird things here
+        eigstrain = Strain.from_voigt(eigvec, dfm_shape='symmetric')
+        brittleness = eigstrain.einsum_sequence([dotvec, dotvec])
+        return brittleness
 
 #TODO: abstract this for other tensor fitting procedures
 def diff_fit(strains, stresses, eq_stress=None, order=2, tol=1e-10):
@@ -1183,7 +1165,7 @@ def get_diff_coeff(hvec, n=1):
     b[n] = factorial(n)
     return np.linalg.solve(a, b)
 
-def get_bz_mesh(structure, resolution=10, sga_params = {}):
+def get_bz_surface(structure, resolution=10, sga_params = {}):
     """
     Helper function to get bz surface mesh
     """
@@ -1221,3 +1203,51 @@ def get_rot(n, rot_into=[0, 0, 1]):
     angle = -np.arccos(np.dot([0, 0, 1], n))
     return SymmOp.from_axis_angle_and_translation(
         rot_axis, angle, angle_in_radians=True)
+
+def plot_surface(vecs, values, ax=None, cbar_label='',
+                 normal=None, off_axes=True, padx=0.1,
+                 **kwargs):
+    """
+    Simple plotting tool for the yield surface
+
+    Args:
+        structure (Structure): structure for which to 
+            find the yield surface
+        resolution (int): resolution for irreducible bz
+        ieee (bool): flag to convert to ieee
+        guess (float): guess for the solver
+        ax (Axis): matplotlib axis object
+        cbar_label (str): colorbar label for colorbar
+        normal (3x1 array-like): normal vector for stereographic projection
+            if not specified, uses average
+        **kwargs (kwargs): kwargs for ax.tricontourf
+    """
+    ax, fig, plt = get_ax_fig_plt(ax=ax)
+    # TODO: refactor stereographic projection
+    if not normal:
+        normal = np.average(vecs, axis=0)
+        normal = get_uvec(normal)
+    x, y = np.transpose(get_stereographic_projection(vecs, normal))
+    # Project into yz plane
+    #x, y = np.transpose(vecs)
+    tri = mtri.Triangulation(x, y)
+    hm = np.mean(np.array(values)[tri.triangles], axis=1)
+    ctf = ax.tricontourf(x, y, tri.triangles, values, **kwargs)
+    cbar = plt.colorbar(ctf)
+    cbar.set_label(cbar_label)
+
+    # Label low-index planes
+    mis = list(itertools.product([-1, 0, 1], repeat=3))
+    mis.remove((0, 0, 0))
+    dists = np.linalg.norm(np.diff(vecs[tri.edges], axis=1), axis=2)
+    atol = np.percentile(dists, 90) # rough estimate of neighbor dist
+    for mi in mis:
+        miv = np.array(mi) / np.linalg.norm(mi)
+        if in_coord_list(vecs, miv, atol=atol):
+            mproj = get_stereographic_projection([miv], normal)[0]
+            ax.text(mproj[0], mproj[1], str(mi))
+    if off_axes:
+        ax.axis('off')
+    xmin, xmax = ax.get_xlim()
+    ax.set_xlim(xmin, xmax + padx * (xmax-xmin))
+    return ax
