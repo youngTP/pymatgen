@@ -843,20 +843,8 @@ class ElasticTensorExpansion(TensorCollection):
         else:
             tensor = self
 
-        # Get BZ vectors and create surface of unique unit vectors
-        bz = SpacegroupAnalyzer(structure).get_ir_reciprocal_mesh(
-                mesh=[resolution]*3)
-        recp = structure.lattice.reciprocal_lattice_crystallographic
-        vecs = np.array([recp.get_cartesian_coords(v[0]) for v in bz])
-        norms = np.linalg.norm(vecs, axis=1)
-        vecs = vecs[norms != 0] / norms[norms != 0][:, None]
-        bz_surf = []
-        for vec in vecs:
-            if not in_coord_list(bz_surf, vec):
-                bz_surf.append(vec)
-
         # Sort surface by distance to something that looks like a corner
-        bz_surf = np.array(bz_surf)
+        bz_surf = get_bz_surf(structure)
         #corner_idx = np.argmin(bz_surf, axis=0)[0]
         distances = np.linalg.norm(bz_surf - bz_surf[0], axis=1)
         bz_surf = bz_surf[np.argsort(distances)]
@@ -1178,7 +1166,6 @@ def subs(entry, cmap):
 v_subs = np.vectorize(subs)
 v_diff = np.vectorize(sp.diff)
 
-
 def get_diff_coeff(hvec, n=1):
     """
     Helper function to find difference coefficients of an
@@ -1195,3 +1182,42 @@ def get_diff_coeff(hvec, n=1):
     b = np.zeros(acc)
     b[n] = factorial(n)
     return np.linalg.solve(a, b)
+
+def get_bz_mesh(structure, resolution=10, sga_params = {}):
+    """
+    Helper function to get bz surface mesh
+    """
+    # Get BZ vectors and create surface of unique unit vectors
+    bz = SpacegroupAnalyzer(structure).get_ir_reciprocal_mesh(
+            mesh=[resolution]*3)
+    recp = structure.lattice.reciprocal_lattice_crystallographic
+    vecs = np.array([recp.get_cartesian_coords(v[0]) for v in bz])
+    norms = np.linalg.norm(vecs, axis=1)
+    vecs = vecs[norms != 0] / norms[norms != 0][:, None]
+    bz_surf = []
+    for vec in vecs:
+        if not in_coord_list(bz_surf, vec):
+            bz_surf.append(vec)
+    return np.array(bz_surf)
+
+
+def get_stereographic_projection(vecs, normal):
+    """Rotates normal vec into z axis, then gets stereographic proj"""
+    if not (np.abs(1 - np.linalg.norm(vecs, axis=1)) < 1e-6).all():
+        raise ValueError("Vecs must be normalized")
+    rot = get_rot(normal)
+    vecs_prime = np.array([rot.operate(v) for v in vecs])
+    vecs_prime += np.array([0, 0, 1])
+    vecs_prime /= np.linalg.norm(vecs_prime, axis=1)[:, None]
+    lengths = 2 / np.dot(vecs_prime, [0, 0, 1])
+    proj = lengths[:, None] * vecs_prime
+    if not (np.abs(2 - proj[:, 2]) < 1e-6).all():
+        raise ValueError("Vecs aren't all in z plane")
+    return proj[:, :2]
+
+def get_rot(n, rot_into=[0, 0, 1]):
+    """Gets symmop that rotates normal into n into z (or another specified vec)"""
+    rot_axis = np.cross([0, 0, 1], n)
+    angle = -np.arccos(np.dot([0, 0, 1], n))
+    return SymmOp.from_axis_angle_and_translation(
+        rot_axis, angle, angle_in_radians=True)
