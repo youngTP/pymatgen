@@ -310,19 +310,7 @@ class AdsorbateSiteFinder(object):
                          for coord in sites]
             if symm_reduce:
                 sites = self.symm_reduce(sites, threshold=symm_reduce)
-<<<<<<< HEAD
-                # we substract the distance from the bottom site if we
-                # wish to adsorb at the surface below the center of mass
-                weights = [s.species_and_occu.weight for s in self.slab]
-                com = np.average(self.slab.frac_coords, weights=weights, axis=0)
-                com = self.slab.lattice.get_cartesian_coords(com)
-
-                sites = [site - distance * self.mvec if
-                         site[2] < com[2] else
-                         site + distance * self.mvec for site in sites]
-=======
             sites = [site + distance * self.mvec for site in sites]
->>>>>>> 1e5ae63b6051a8d5b5bdcb76c052edf5facb3816
 
             ads_sites[key] = sites
         return ads_sites
