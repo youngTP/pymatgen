@@ -24,6 +24,7 @@ import numpy as np
 import warnings
 import itertools
 import os
+import logging
 
 import sympy as sp
 
@@ -44,6 +45,8 @@ __email__ = "montoyjh@lbl.gov"
 __status__ = "Development"
 __date__ = "March 22, 2012"
 
+
+logger = logging.getLogger(__name__)
 
 class NthOrderElasticTensor(Tensor):
     """
@@ -749,7 +752,8 @@ class ElasticTensorExpansion(TensorCollection):
         return strain
 
     def solve_strain_from_stress(self, stress, tol=1e-5):
-        guess = Strain(self.get_strain_from_stress(stress), dfm_shape='symmetric').voigt
+        guess = Strain(self.get_strain_from_stress(stress),
+                       dfm_shape='symmetric').voigt
         def f(strain):
             return np.linalg.norm(self.calculate_stress(strain) - stress)
         result = minimize(f, guess, tol=tol)
@@ -792,7 +796,7 @@ class ElasticTensorExpansion(TensorCollection):
         b += self.get_effective_ecs(strain)
         return b
 
-    def get_symmetric_wallace_tensor(self, tau):
+    def get_symmetric_wallace_tensor(self, tau, solve=False):
         """
         Gets the symmetrized wallace tensor for determining
         yield strength criteria.
@@ -801,7 +805,7 @@ class ElasticTensorExpansion(TensorCollection):
             tau (3x3 array-like): stress at which to evaluate
                 the wallace tensor. 
         """
-        wallace = self.get_wallace_tensor(tau)
+        wallace = self.get_wallace_tensor(tau, solve=solve)
         return Tensor(0.5 * (wallace + np.transpose(wallace, [2, 3, 0, 1])))
 
     def get_stability_criteria(self, s, n):
@@ -870,46 +874,31 @@ class ElasticTensorExpansion(TensorCollection):
         ys = []
         guesses = guess * np.ones(len(bz_surf))
         for n, vec in enumerate(bz_surf):
-            if verbose:
-                print("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
+            logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
             ys.append(tensor.solve_yield_stress(vec, guesses[n]))
             guesses[all_neighbors[n]] = ys[-1]
 
         return np.array(bz_surf), np.array(ys)
 
     # TODO: make this not dependent on ys or able to used cached version
-    def get_brittleness(self, n, stress, mode='rotate'):
+    def get_brittleness(self, n, stress, solve=False):
         """
         Gets the brittleness criterion for a uniaxial load
         """
-        if mode is 'rotate':
-            # Get rotation
-            test = self[0].einsum_sequence([n]*4)
-            rot_axis = np.cross([0, 0, 1], n)
-            angle = -np.arccos(np.dot([0, 0, 1], n))
-            rotation = SymmOp.from_axis_angle_and_translation(
-                    rot_axis, angle, angle_in_radians=True)
-            new = self.transform(rotation)
-            test_2 = new[0].einsum_sequence([[0, 0, 1]]*4)
-            assert np.allclose(test, test_2)
-            tau = np.zeros((3, 3))
-            tau[2, 2] = stress
-            wallace = new.get_symmetric_wallace_tensor(tau)
-            dotvec = [0, 0, 1]
-        else:
-            # Second method
-            tau = stress * np.outer(n, n)
-            wallace = self.get_symmetric_wallace_tensor(tau)
-            dotvec = n
+        tau = stress * np.outer(n, n)
+        wallace = self.get_symmetric_wallace_tensor(tau, solve=solve)
         # Get eigvals/eigvecs, zip eigvals and eigvecs, sort by eigval
-        eigs = np.linalg.eigh(wallace.voigt)
+        eigs = np.linalg.eig(wallace.voigt)
         eigs = zip(eigs[0].tolist(), eigs[1].tolist())
         eigs = sorted(eigs, key=lambda x: x[0])
-        assert eigs[0][0] < 1e-5, "No failure mode detected"
-        eigvec = get_uvec(eigs[0][1])
+
+        if eigs[0][0] < 1e-5:
+            warnings.warn("Positive failure mode detected")
+        #eigvec = get_uvec(eigs[0][1])
+        eigvec = eigs[0][1]
         # For some reason cholesky does some weird things here
         eigstrain = Strain.from_voigt(eigvec, dfm_shape='symmetric')
-        brittleness = eigstrain.einsum_sequence([dotvec, dotvec])
+        brittleness = eigstrain.einsum_sequence([n, n])
         return brittleness
 
 #TODO: abstract this for other tensor fitting procedures

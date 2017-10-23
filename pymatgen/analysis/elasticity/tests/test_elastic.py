@@ -312,6 +312,12 @@ class ElasticTensorExpansionTest(PymatgenTest):
         strain_revert4 = self.exp_cu_4.get_strain_from_stress(stress4)
         self.assertArrayAlmostEqual(strain, strain_revert4, decimal=2)
 
+    def test_solve_strain_from_stress(self):
+        strain = Strain.from_voigt([0.03, 0, 0, 0, 0, 0])
+        stress3 = self.exp_cu.calculate_stress(strain)
+        strain_revert3 = self.exp_cu.solve_strain_from_stress(stress3)
+        self.assertArrayAlmostEqual(strain, strain_revert3, decimal=5)
+
     def test_solve_yield_stress(self):
         ys = self.exp_cu_4.solve_yield_stress([1, 0, 0], 3)
         self.assertAlmostEqual(ys, 6.4957, places=3)
@@ -330,8 +336,8 @@ class ElasticTensorExpansionTest(PymatgenTest):
         n = [1, 0, 0]
         n = get_uvec(n)
         ys = self.exp_cu.solve_yield_stress(n, guess=5)
-        brit = self.exp_cu.get_brittleness(n, ys)
-        blargh
+        brit = self.exp_cu.get_brittleness(n, ys, solve=True)
+        brit = self.exp_cu.get_brittleness(n, ys, solve=False)
 
     def test_plot_ys(self):
         ax = self.exp_cu.plot_yield_surface(self.cu)
@@ -463,11 +469,10 @@ class DiffFitTest(PymatgenTest):
 
 class PlotSurfaceTest(PymatgenTest):
     def setUp(self):
-        pass
+        self.mesh = get_bz_surface(self.get_structure('Si'))
 
     def test_stereographic_projection(self):
-        mesh = get_bz_mesh(self.get_structure('Si'))
-        get_stereographic_projection(mesh, normal=[1, 0, 0])
+        get_stereographic_projection(self.mesh, normal=[1, 0, 0])
 
     def test_get_rot(self):
         pass
@@ -475,6 +480,8 @@ class PlotSurfaceTest(PymatgenTest):
     def test_get_bz_surface(self):
         pass
 
+    def test_plot_surface(self):
+        plot_surface(self.mesh, [1]*len(self.mesh))
 
 if __name__ == '__main__':
     unittest.main()
