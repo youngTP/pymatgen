@@ -808,7 +808,7 @@ class ElasticTensorExpansion(TensorCollection):
         wallace = self.get_wallace_tensor(tau, solve=solve)
         return Tensor(0.5 * (wallace + np.transpose(wallace, [2, 3, 0, 1])))
 
-    def get_stability_criteria(self, s, n):
+    def get_stability_criteria(self, s, n, solve=False):
         """
         Gets the stability criteria from the symmetric
         Wallace tensor from an input vector and stress
@@ -822,10 +822,10 @@ class ElasticTensorExpansion(TensorCollection):
         """
         n = get_uvec(n)
         stress = s * np.outer(n, n)
-        sym_wallace = self.get_symmetric_wallace_tensor(stress)
+        sym_wallace = self.get_symmetric_wallace_tensor(stress, solve=solve)
         return np.linalg.det(sym_wallace.voigt)
 
-    def solve_yield_stress(self, n, guess, **kwargs):
+    def solve_yield_stress(self, n, guess, solve=False, **kwargs):
         """
         Finds the stability criteria zero for
         a given guess
@@ -836,10 +836,10 @@ class ElasticTensorExpansion(TensorCollection):
             guess (float): guess for applied normal stress for
                 root finding
         """
-        return root(self.get_stability_criteria, guess, args=n, **kwargs).x[0]
+        return root(self.get_stability_criteria, guess, args=(n, solve), **kwargs).x[0]
 
     # TODO: double check the reciprocal/real space convention here
-    def generate_yield_surface(self, structure, resolution=10,
+    def generate_yield_surface(self, structure, resolution=10, start=None,
                                ieee=True, guess = 5, verbose=False):
         """
         Finds the stability criteria zero for
@@ -850,6 +850,7 @@ class ElasticTensorExpansion(TensorCollection):
                 find the yield surface
             resolution (int): resolution for irreducible bz
             ieee (bool): whether to convert to ieee
+            start (3x1 array-like): starting vector to populate
             guess (float): guess for the solver
         """
         if ieee:
@@ -888,16 +889,18 @@ class ElasticTensorExpansion(TensorCollection):
         tau = stress * np.outer(n, n)
         wallace = self.get_symmetric_wallace_tensor(tau, solve=solve)
         # Get eigvals/eigvecs, zip eigvals and eigvecs, sort by eigval
-        eigs = np.linalg.eig(wallace.voigt)
-        eigs = zip(eigs[0].tolist(), eigs[1].tolist())
-        eigs = sorted(eigs, key=lambda x: x[0])
+        w, v = np.linalg.eigh(wallace.voigt)
+        v = np.transpose(v)
+        eigs = sorted(zip(w, v), key=lambda x: x[0])
 
         if eigs[0][0] < 1e-5:
-            warnings.warn("Positive failure mode detected")
+            warnings.warn("Pos. failure mode detected: "
+                          "{}, {}".format(n, eigs[0][0]))
         #eigvec = get_uvec(eigs[0][1])
         eigvec = eigs[0][1]
         # For some reason cholesky does some weird things here
         eigstrain = Strain.from_voigt(eigvec, dfm_shape='symmetric')
+        eigstrain /= np.linalg.norm(eigstrain)
         brittleness = eigstrain.einsum_sequence([n, n])
         return brittleness
 
