@@ -469,7 +469,7 @@ class DiffFitTest(PymatgenTest):
 
 class PlotSurfaceTest(PymatgenTest):
     def setUp(self):
-        self.mesh = get_bz_surface(self.get_structure('Si'))
+        self.mesh = get_bz_surface(self.get_structure('Sn'))
 
     def test_stereographic_projection(self):
         get_stereographic_projection(self.mesh, normal=[1, 0, 0])
@@ -482,6 +482,7 @@ class PlotSurfaceTest(PymatgenTest):
 
     def test_plot_surface(self):
         plot_surface(self.mesh, [1]*len(self.mesh))
+        plot_surface(self.mesh, [1] * len(self.mesh), normal=[1, 0, 0])
 
 if __name__ == '__main__':
     unittest.main()

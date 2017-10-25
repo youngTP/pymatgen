@@ -1175,7 +1175,7 @@ def get_bz_surface(structure, resolution=10, sga_params = {}):
     return np.array(bz_surf)
 
 
-def get_stereographic_projection(vecs, normal):
+def get_stereographic_projection(vecs, normal, height=0.0):
     """Rotates normal vec into z axis, then gets stereographic proj"""
     if not (np.abs(1 - np.linalg.norm(vecs, axis=1)) < 1e-6).all():
         raise ValueError("Vecs must be normalized")
@@ -1183,14 +1183,17 @@ def get_stereographic_projection(vecs, normal):
     vecs_prime = np.array([rot.operate(v) for v in vecs])
     vecs_prime += np.array([0, 0, 1])
     vecs_prime /= np.linalg.norm(vecs_prime, axis=1)[:, None]
-    lengths = 2 / np.dot(vecs_prime, [0, 0, 1])
+    lengths = (1 + height) / np.dot(vecs_prime, [0, 0, 1])
     proj = lengths[:, None] * vecs_prime
-    if not (np.abs(2 - proj[:, 2]) < 1e-6).all():
-        raise ValueError("Vecs aren't all in z plane")
+    if not (np.abs(height + 1 - proj[:, 2]) < 1e-6).all():
+        raise ValueError("Vecs aren't all in same plane")
     return proj[:, :2]
 
 def get_rot(n, rot_into=[0, 0, 1]):
     """Gets symmop that rotates normal into n into z (or another specified vec)"""
+    n = get_uvec(n)
+    if np.allclose(n, rot_into):
+        return SymmOp.from_rotation_and_translation(np.eye(3))
     rot_axis = np.cross([0, 0, 1], n)
     angle = -np.arccos(np.dot([0, 0, 1], n))
     return SymmOp.from_axis_angle_and_translation(
@@ -1216,13 +1219,14 @@ def plot_surface(vecs, values, ax=None, cbar_label='',
     """
     ax, fig, plt = get_ax_fig_plt(ax=ax)
     # TODO: refactor stereographic projection
+    avg_n = np.average(vecs, axis=0)
+    avg_n = get_uvec(avg_n)
     if not normal:
-        normal = np.average(vecs, axis=0)
-        normal = get_uvec(normal)
+        normal = avg_n
     x, y = np.transpose(get_stereographic_projection(vecs, normal))
-    # Project into yz plane
-    #x, y = np.transpose(vecs)
-    tri = mtri.Triangulation(x, y)
+    # Get triangulation from avg, otherwise will look weird
+    xy_avg = np.transpose(get_stereographic_projection(vecs, avg_n))
+    tri = mtri.Triangulation(*xy_avg)
     hm = np.mean(np.array(values)[tri.triangles], axis=1)
     ctf = ax.tricontourf(x, y, tri.triangles, values, **kwargs)
     cbar = plt.colorbar(ctf)
