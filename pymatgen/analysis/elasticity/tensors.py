@@ -433,6 +433,22 @@ class Tensor(np.ndarray):
             obj = obj.fit_to_structure(structure)
         return obj
 
+    def dot_sequence(self, t_list, axes=None):
+        """
+        Quick function to do sequential tensor contraction
+        """
+        t_list = [Tensor(t) for t in t_list]
+        if axes is None:
+            axes = [t.rank for t in t_list]
+        elif not isinstance(axes, list):
+            axes = [axes]*len(t_list)
+        axes.reverse()
+        t_list.reverse()
+        result = self.copy() 
+        for t, ax in zip(t_list, axes):
+            result = np.tensordot(result, t, ax)
+        return result
+
     def populate(self, structure, prec=1e-5, maxiter=200, verbose=False,
                  precond=True, vsym=True):
         """

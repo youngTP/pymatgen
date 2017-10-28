@@ -205,6 +205,9 @@ class TensorTest(PymatgenTest):
         self.assertEqual(360, test.einsum_sequence([np.eye(3)]*2))
         self.assertRaises(ValueError, test.einsum_sequence, Tensor(np.zeros(3)))
 
+    def test_dot_sequence(self):
+        self.assertEqual(self.rand_rank4.dot_sequence([[1, 0, 0]]*4), self.rand_rank4[0, 0, 0, 0])
+
     def test_symmetrized(self):
         self.assertTrue(self.rand_rank2.symmetrized.is_symmetric())
         self.assertTrue(self.rand_rank3.symmetrized.is_symmetric())
