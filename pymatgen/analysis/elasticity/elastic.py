@@ -840,7 +840,7 @@ class ElasticTensorExpansion(TensorCollection):
 
     # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10, start=None,
-                               ieee=True, guess = 5, verbose=False):
+                               ieee=True, guess = 5, verbose=False, pad_guess=0):
         """
         Finds the stability criteria zero for
         a given guess
@@ -877,7 +877,7 @@ class ElasticTensorExpansion(TensorCollection):
         for n, vec in enumerate(bz_surf):
             logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
             ys.append(tensor.solve_yield_stress(vec, guesses[n]))
-            guesses[all_neighbors[n]] = ys[-1]
+            guesses[all_neighbors[n]] = ys[-1] + pad_guess
 
         return np.array(bz_surf), np.array(ys)
 

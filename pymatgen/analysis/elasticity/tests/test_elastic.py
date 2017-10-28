@@ -331,6 +331,8 @@ class ElasticTensorExpansionTest(PymatgenTest):
         self.assertAlmostEqual(max_ys, 10.152621, places=5)
         self.assertArrayAlmostEqual([0.57735027,  0.57735027,  0.57735027], max_dir) 
 
+        bs, ys = self.exp_cu.generate_yield_surface(self.cu, guess=-5, pad_guess=-1)
+
     def test_get_brittleness(self):
         # This is the yield stress
         n = [1, 0, 0]
