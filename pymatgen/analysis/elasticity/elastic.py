@@ -784,19 +784,12 @@ class ElasticTensorExpansion(TensorCollection):
             tau (3x3 array-like): stress at which to evaluate
                 the wallace tensor
         """
-        if np.issubdtype(np.array(tau).dtype, np.number):
-            b = 0.5 * (np.einsum("ml,kn->klmn", tau, np.eye(3)) +
-                       np.einsum("km,ln->klmn", tau, np.eye(3)) +
-                       np.einsum("nl,km->klmn", tau, np.eye(3)) +
-                       np.einsum("kn,lm->klmn", tau, np.eye(3)) +
-                       -2*np.einsum("kl,mn->klmn", tau, np.eye(3)))
-        else:
-            b, d = np.zeros([3]*4), np.eye(3)
+        b, d = np.zeros([3]*4), np.eye(3)
 
-            for k, l, m, n in itertools.product(*[range(3)]*4):
-                b[k, l, m, n] = tau[m, l] * d[k, n] + tau[k, m] * d[l, n] \
-                                + tau[n, l] * d[k, m] + tau[k, n] * d[l, m] \
-                                - 2 * tau[k, l] * d[m, n]
+        for k, l, m, n in itertools.product(*[range(3)]*4):
+            b[k, l, m, n] = tau[m, l] * d[k, n] + tau[k, m] * d[l, n] \
+                            + tau[n, l] * d[k, m] + tau[k, n] * d[l, m] \
+                            - 2 * tau[k, l] * d[m, n]
 
         if solve:
             strain = self.solve_strain_from_stress(tau)
