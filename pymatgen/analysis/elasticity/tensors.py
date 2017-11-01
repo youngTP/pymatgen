@@ -232,7 +232,7 @@ class Tensor(np.ndarray):
         this_voigt_map = self.get_voigt_dict(self.rank)
         for ind in this_voigt_map:
             v_matrix[this_voigt_map[ind]] = self[ind]
-        if not self.is_voigt_symmetric():
+        if np.issubdtype(self.dtype, np.number) and not self.is_voigt_symmetric():
             warnings.warn("Tensor is not symmetric, information may "
                           "be lost in voigt conversion.")
         return v_matrix * self._vscale

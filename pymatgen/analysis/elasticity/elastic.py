@@ -748,7 +748,7 @@ class ElasticTensorExpansion(TensorCollection):
         compl_exp = self.get_compliance_expansion()
         strain = 0
         for n, compl in enumerate(compl_exp):
-            strain += compl.einsum_sequence([stress]*(n+1)) / factorial(n+1)
+            strain += compl.dot_sequence([stress]*(n+1)) / factorial(n+1)
         return strain
 
     def solve_strain_from_stress(self, stress, tol=1e-5):
@@ -770,7 +770,7 @@ class ElasticTensorExpansion(TensorCollection):
                 under which to calculate the effective constants
             order (int): order of the ecs to be returned
         """
-        ec_sum = 0
+        ec_sum = np.zeros([3]*4, dtype=strain.dtype)
         for n, ecs in enumerate(self[order-2:]):
             ec_sum += ecs.dot_sequence([strain] * n) / factorial(n)
         return ec_sum
@@ -784,7 +784,7 @@ class ElasticTensorExpansion(TensorCollection):
             tau (3x3 array-like): stress at which to evaluate
                 the wallace tensor
         """
-        b, d = np.zeros([3]*4), np.eye(3)
+        b, d = np.zeros([3]*4, dtype=tau.dtype), np.eye(3)
 
         for k, l, m, n in itertools.product(*[range(3)]*4):
             b[k, l, m, n] = tau[m, l] * d[k, n] + tau[k, m] * d[l, n] \
@@ -825,12 +825,17 @@ class ElasticTensorExpansion(TensorCollection):
         n = get_uvec(n)
         stress = s * np.outer(n, n)
         sym_wallace = self.get_symmetric_wallace_tensor(stress, solve=solve)
-        return np.linalg.det(sym_wallace.voigt)
+        if np.issubdtype(sym_wallace.dtype, np.number):
+            w, u = np.linalg.eigh(sym_wallace.voigt)
+            return np.min(w)
+        else:
+            # handle sympy
+            return sp.Matrix(sym_wallace.voigt).det()
 
-    def solve_yield_stress(self, n, guess, solve=False, **kwargs):
+    def solve_yield_stress(self, n, guess, solve=False, method="sym", 
+                           root_func=root, **kwargs):
         """
-        Finds the stability criteria zero for
-        a given guess
+        Finds the stability criteria zero for a given guess
         
         Args:
             n (3x1 array-like): direction for which to find the
@@ -838,11 +843,26 @@ class ElasticTensorExpansion(TensorCollection):
             guess (float): guess for applied normal stress for
                 root finding
         """
-        return root(self.get_stability_criteria, guess, args=(n, solve), **kwargs).x[0]
+        if method=="sym":
+            # Define a symbolic version of the wallace tensor
+            # and solve a subsitution/determinant function
+            s_tau = sp.Symbol('s') * np.outer(n, n)
+            sym_wallace = self.get_symmetric_wallace_tensor(s_tau).voigt
+            sym_wallace = sp.Matrix(sym_wallace)
+            def stab_func(x):
+                num = np.float64(np.array(sym_wallace.subs({"s": x})))
+                return np.min(np.linalg.eigh(num)[0])
+            result = root_func(stab_func, guess, **kwargs).x[0]
+            return root_func(stab_func, guess, **kwargs).x[0]
+        elif method=="num":
+            return root_func(self.get_stability_criteria, guess, args=(n, solve), **kwargs).x[0]
+        else:
+            raise ValueError("Method must be \"sym\" or \"num\"")
 
     # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10, start=None,
-                               ieee=True, guess = 5, verbose=False, pad_guess=0):
+                               ieee=True, guess=5, verbose=False, method='sym',
+                               pad_guess=0, multi=False):
         """
         Finds the stability criteria zero for
         a given guess
@@ -876,9 +896,10 @@ class ElasticTensorExpansion(TensorCollection):
         # iteration to improve smoothness
         ys = []
         guesses = guess * np.ones(len(bz_surf))
-        for n, vec in enumerate(bz_surf):
+        import tqdm
+        for n, vec in tqdm.tqdm(enumerate(bz_surf)):
             logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
-            ys.append(tensor.solve_yield_stress(vec, guesses[n]))
+            ys.append(tensor.solve_yield_stress(vec, guesses[n], method=method))
             guesses[all_neighbors[n]] = ys[-1] + pad_guess
 
         return np.array(bz_surf), np.array(ys)

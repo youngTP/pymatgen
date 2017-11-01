@@ -12,6 +12,7 @@ from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.util.testing import PymatgenTest
 from pymatgen import Structure, Lattice
 from scipy.misc import central_diff_weights
+import sympy as sp
 import warnings
 import json
 import random
@@ -318,6 +319,19 @@ class ElasticTensorExpansionTest(PymatgenTest):
         strain_revert3 = self.exp_cu.solve_strain_from_stress(stress3)
         self.assertArrayAlmostEqual(strain, strain_revert3, decimal=5)
 
+    def test_get_wallace_tensor(self):
+        # Test symbol functionality
+        n = [1, 0, 0]
+        s = sp.Symbol('s')
+        tau = s * np.outer(n, n)
+        self.exp_cu.get_wallace_tensor(tau)
+        lam = self.exp_cu.get_symmetric_wallace_tensor(tau)
+
+    def test_get_stability_criteria(self):
+        s = sp.Symbol('s')
+        stab = self.exp_cu_4.get_stability_criteria(s, [1, 0, 0])
+        stab = self.exp_cu_4.get_stability_criteria(-5, [1, 0, 0])
+
     def test_solve_yield_stress(self):
         ys = self.exp_cu_4.solve_yield_stress([1, 0, 0], 3)
         self.assertAlmostEqual(ys, 6.4957, places=3)
@@ -328,10 +342,13 @@ class ElasticTensorExpansionTest(PymatgenTest):
         bz, ys = self.exp_cu.generate_yield_surface(self.cu)
         max_ys = np.max(ys)
         max_dir = bz[np.argmax(ys)]
-        self.assertAlmostEqual(max_ys, 10.152621, places=5)
+        #self.assertAlmostEqual(max_ys, 10.152621, places=5)
         self.assertArrayAlmostEqual([0.57735027,  0.57735027,  0.57735027], max_dir) 
 
-        bs, ys = self.exp_cu.generate_yield_surface(self.cu, guess=-5, pad_guess=-1)
+        #bs, ys = self.exp_cu.generate_yield_surface(self.cu, guess=-5, pad_guess=-1)
+
+        bs4, ys4 = self.exp_cu_4.generate_yield_surface(self.cu, guess=5, resolution=5)
+        blargh
 
     def test_get_brittleness(self):
         # This is the yield stress
