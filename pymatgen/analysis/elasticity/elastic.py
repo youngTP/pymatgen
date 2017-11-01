@@ -883,8 +883,10 @@ class ElasticTensorExpansion(TensorCollection):
 
         # Sort surface by distance to something that looks like a corner
         bz_surf = get_bz_surface(structure, resolution)
+        if not start:
+            start = bz_surf[0]
         #corner_idx = np.argmin(bz_surf, axis=0)[0]
-        distances = np.linalg.norm(bz_surf - bz_surf[0], axis=1)
+        distances = np.linalg.norm(bz_surf - np.array(start), axis=1)
         bz_surf = bz_surf[np.argsort(distances)]
         # get neighbors to update guesses in iteration
         x, y, z = np.transpose(bz_surf)
