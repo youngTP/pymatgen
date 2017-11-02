@@ -16,7 +16,7 @@ from pymatgen.core.units import Unit
 from pymatgen.core.operations import SymmOp
 from scipy.misc import factorial
 from scipy.integrate import quad
-from scipy.optimize import root, minimize
+from scipy.optimize import root, minimize, brentq
 import matplotlib.tri as mtri
 from monty.serialization import loadfn
 from collections import OrderedDict
@@ -785,12 +785,17 @@ class ElasticTensorExpansion(TensorCollection):
                 the wallace tensor
         """
         b, d = np.zeros([3]*4, dtype=tau.dtype), np.eye(3)
-
+        """
         for k, l, m, n in itertools.product(*[range(3)]*4):
             b[k, l, m, n] = tau[m, l] * d[k, n] + tau[k, m] * d[l, n] \
                             + tau[n, l] * d[k, m] + tau[k, n] * d[l, m] \
                             - 2 * tau[k, l] * d[m, n]
-
+        """
+        b = 0.5 * (np.einsum("ml,kn->klmn", tau, np.eye(3)) +
+                   np.einsum("km,ln->klmn", tau, np.eye(3)) +
+                   np.einsum("nl,km->klmn", tau, np.eye(3)) +
+                   np.einsum("kn,lm->klmn", tau, np.eye(3)) +
+                   -2*np.einsum("kl,mn->klmn", tau, np.eye(3)))
         if solve:
             strain = self.solve_strain_from_stress(tau)
         else:
@@ -825,15 +830,11 @@ class ElasticTensorExpansion(TensorCollection):
         n = get_uvec(n)
         stress = s * np.outer(n, n)
         sym_wallace = self.get_symmetric_wallace_tensor(stress, solve=solve)
-        if np.issubdtype(sym_wallace.dtype, np.number):
-            w, u = np.linalg.eigh(sym_wallace.voigt)
-            return np.min(w)
-        else:
-            # handle sympy
-            return sp.Matrix(sym_wallace.voigt).det()
+        w, u = np.linalg.eigh(sym_wallace.voigt)
+        return np.min(w)
 
-    def solve_yield_stress(self, n, guess, solve=False, method="sym", 
-                           root_func=root, **kwargs):
+    def solve_yield_stress(self, n, guess, root_func=root,
+                           solve=False, *args, **kwargs):
         """
         Finds the stability criteria zero for a given guess
         
@@ -843,26 +844,14 @@ class ElasticTensorExpansion(TensorCollection):
             guess (float): guess for applied normal stress for
                 root finding
         """
-        if method=="sym":
-            # Define a symbolic version of the wallace tensor
-            # and solve a subsitution/determinant function
-            s_tau = sp.Symbol('s') * np.outer(n, n)
-            sym_wallace = self.get_symmetric_wallace_tensor(s_tau).voigt
-            sym_wallace = sp.Matrix(sym_wallace)
-            def stab_func(x):
-                num = np.float64(np.array(sym_wallace.subs({"s": x})))
-                return np.min(np.linalg.eigh(num)[0])
-            result = root_func(stab_func, guess, **kwargs).x[0]
-            return root_func(stab_func, guess, **kwargs).x[0]
-        elif method=="num":
-            return root_func(self.get_stability_criteria, guess, args=(n, solve), **kwargs).x[0]
-        else:
-            raise ValueError("Method must be \"sym\" or \"num\"")
+        root = root_func(self.get_stability_criteria, guess, args=(n, solve), 
+                         *args, **kwargs)
+        return root.x[0]
 
     # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10, start=None,
-                               ieee=True, guess=5, verbose=False, method='sym',
-                               pad_guess=0, multi=False):
+                               ieee=True, guess=5, verbose=False, window=2.0,
+                               multi=False):
         """
         Finds the stability criteria zero for
         a given guess
@@ -883,10 +872,8 @@ class ElasticTensorExpansion(TensorCollection):
 
         # Sort surface by distance to something that looks like a corner
         bz_surf = get_bz_surface(structure, resolution)
-        if not start:
-            start = bz_surf[0]
         #corner_idx = np.argmin(bz_surf, axis=0)[0]
-        distances = np.linalg.norm(bz_surf - np.array(start), axis=1)
+        distances = np.linalg.norm(bz_surf - bz_surf[0], axis=1)
         bz_surf = bz_surf[np.argsort(distances)]
         # get neighbors to update guesses in iteration
         x, y, z = np.transpose(bz_surf)
@@ -901,8 +888,15 @@ class ElasticTensorExpansion(TensorCollection):
         import tqdm
         for n, vec in tqdm.tqdm(enumerate(bz_surf)):
             logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
-            ys.append(tensor.solve_yield_stress(vec, guesses[n], method=method))
-            guesses[all_neighbors[n]] = ys[-1] + pad_guess
+            guess = guesses[n]
+            a, b = guess + window, guess - window
+            # if you get a sign change, use brent's method, else use Newton
+            if np.sign(a) != np.sign(b):
+                ys.append(tensor.solve_yield_stress(
+                    vec, a=a, b=b, root_func=brentq))
+            else:
+                ys.append(tensor.solve_yield_stress(vec, guesses[n]))
+            guesses[all_neighbors[n]] = ys[-1]
 
         return np.array(bz_surf), np.array(ys)
 
@@ -918,7 +912,7 @@ class ElasticTensorExpansion(TensorCollection):
         v = np.transpose(v)
         eigs = sorted(zip(w, v), key=lambda x: x[0])
 
-        if eigs[0][0] < 1e-5:
+        if not eigs[0][0] < 1e-5:
             warnings.warn("Pos. failure mode detected: "
                           "{}, {}".format(n, eigs[0][0]))
         #eigvec = get_uvec(eigs[0][1])
