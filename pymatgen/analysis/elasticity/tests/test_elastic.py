@@ -347,8 +347,8 @@ class ElasticTensorExpansionTest(PymatgenTest):
 
         #bs, ys = self.exp_cu.generate_yield_surface(self.cu, guess=-5, pad_guess=-1)
 
-        bs4, ys4 = self.exp_cu_4.generate_yield_surface(self.cu, guess=5, resolution=5)
-        blargh
+        bs4, ys4 = self.exp_cu_4.generate_yield_surface(self.cu, ieee=False,
+                                                        guess=5, resolution=5)
 
     def test_get_brittleness(self):
         # This is the yield stress
