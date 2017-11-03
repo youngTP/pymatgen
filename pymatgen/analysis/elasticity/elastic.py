@@ -833,7 +833,7 @@ class ElasticTensorExpansion(TensorCollection):
         w, u = np.linalg.eigh(sym_wallace.voigt)
         return np.min(w)
 
-    def solve_yield_stress(self, n, guess, root_func=root,
+    def solve_yield_stress(self, n, root_func=root,
                            solve=False, *args, **kwargs):
         """
         Finds the stability criteria zero for a given guess
@@ -844,13 +844,14 @@ class ElasticTensorExpansion(TensorCollection):
             guess (float): guess for applied normal stress for
                 root finding
         """
-        root = root_func(self.get_stability_criteria, guess, args=(n, solve), 
-                         *args, **kwargs)
-        return root.x[0]
+
+        this_root = root_func(self.get_stability_criteria, args=(n, solve), 
+                              *args, **kwargs)
+        return this_root
 
     # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10, start=None,
-                               ieee=True, guess=5, verbose=False, window=2.0,
+                               ieee=True, guess=5, verbose=False, window=[0, 50],
                                multi=False):
         """
         Finds the stability criteria zero for
@@ -889,11 +890,11 @@ class ElasticTensorExpansion(TensorCollection):
         for n, vec in tqdm.tqdm(enumerate(bz_surf)):
             logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
             guess = guesses[n]
-            a, b = guess + window, guess - window
+            a, b = window 
             # if you get a sign change, use brent's method, else use Newton
             if np.sign(a) != np.sign(b):
                 ys.append(tensor.solve_yield_stress(
-                    vec, a=a, b=b, root_func=brentq))
+                    vec, root_func=brentq, a=a, b=b))
             else:
                 ys.append(tensor.solve_yield_stress(vec, guesses[n]))
             guesses[all_neighbors[n]] = ys[-1]
