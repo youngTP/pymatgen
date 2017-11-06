@@ -892,7 +892,9 @@ class ElasticTensorExpansion(TensorCollection):
             guess = guesses[n]
             a, b = window 
             # if you get a sign change, use brent's method, else use Newton
-            if np.sign(a) != np.sign(b):
+            bounds = [self.get_stability_criteria(a, vec),
+                      self.get_stability_criteria(b, vec)]
+            if np.sign(bounds[0]) != np.sign(bounds[1]):
                 ys.append(tensor.solve_yield_stress(
                     vec, root_func=brentq, a=a, b=b))
             else:
