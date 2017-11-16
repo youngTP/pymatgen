@@ -17,7 +17,9 @@ from pymatgen.core.operations import SymmOp
 from scipy.misc import factorial
 from scipy.integrate import quad
 from scipy.optimize import root, minimize, brentq
+from scipy.optimize.optimize import OptimizeResult
 import matplotlib.tri as mtri
+from matplotlib import patches
 from monty.serialization import loadfn
 from collections import OrderedDict
 import numpy as np
@@ -847,12 +849,15 @@ class ElasticTensorExpansion(TensorCollection):
 
         this_root = root_func(self.get_stability_criteria, args=(n, solve), 
                               *args, **kwargs)
-        return this_root
+        if isinstance(this_root, OptimizeResult):
+            return this_root.x[0]
+        else:
+            return this_root
 
     # TODO: double check the reciprocal/real space convention here
     def generate_yield_surface(self, structure, resolution=10, start=None,
-                               ieee=True, guess=5, verbose=False, window=[0, 50],
-                               multi=False):
+                               ieee=True, guess=5, verbose=False, pad=0.5,
+                               window=[0, 50], multi=False, validate=True):
         """
         Finds the stability criteria zero for
         a given guess
@@ -887,19 +892,31 @@ class ElasticTensorExpansion(TensorCollection):
         ys = []
         guesses = guess * np.ones(len(bz_surf))
         import tqdm
-        for n, vec in tqdm.tqdm(enumerate(bz_surf)):
-            logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
-            guess = guesses[n]
-            a, b = window 
-            # if you get a sign change, use brent's method, else use Newton
-            bounds = [self.get_stability_criteria(a, vec),
-                      self.get_stability_criteria(b, vec)]
-            if np.sign(bounds[0]) != np.sign(bounds[1]):
-                ys.append(tensor.solve_yield_stress(
-                    vec, root_func=brentq, a=a, b=b))
-            else:
-                ys.append(tensor.solve_yield_stress(vec, guesses[n]))
-            guesses[all_neighbors[n]] = ys[-1]
+        if multi:
+            from multiprocessing.dummy import Pool
+            from functools import partial
+            pool = Pool(multi)
+            kwargs = {"a": window[0], "b": window[1], "root_func": brentq}
+            ys = list(tqdm.tqdm(pool.imap(partial(tensor.solve_yield_stress, **kwargs), bz_surf),
+                                total=len(bz_surf)))
+            pool.close()
+        else:
+            for n, vec in tqdm.tqdm(enumerate(bz_surf)):
+                logger.info("YS: Solving {} of {}: {}".format(n, len(bz_surf), vec))
+                guess = guesses[n]
+                a, b = guess + pad, guess - pad
+                # if you get a sign change, use brent's method, else use Newton
+                bounds = [self.get_stability_criteria(a, vec),
+                          self.get_stability_criteria(b, vec)]
+                if np.sign(bounds[0]) != np.sign(bounds[1]):
+                    ys.append(tensor.solve_yield_stress(
+                        vec, root_func=brentq, a=a, b=b))
+                else:
+                    ys.append(tensor.solve_yield_stress(vec, x0=guesses[n]))
+                guesses[all_neighbors[n]] = ys[-1]
+                if validate:
+                    stab_crit = self.get_stability_criteria(ys[-1], vec)
+                    assert np.abs(stab_crit) < 1e-8
 
         return np.array(bz_surf), np.array(ys)
 
@@ -1221,22 +1238,24 @@ def get_rot(n, rot_into=[0, 0, 1]):
     return SymmOp.from_axis_angle_and_translation(
         rot_axis, angle, angle_in_radians=True)
 
-def plot_surface(vecs, values, ax=None, cbar_label='',
-                 normal=None, off_axes=True, padx=0.1,
-                 **kwargs):
+def plot_surface(vecs, values, ax=None, cbar_label='', normal=None,
+                 label_miller=True, off_axes=True, padx=0.1, pady=0.1,
+                 cbar_kwargs = {}, label_extrema=False, **kwargs):
     """
     Simple plotting tool for the yield surface
 
     Args:
-        structure (Structure): structure for which to 
-            find the yield surface
-        resolution (int): resolution for irreducible bz
-        ieee (bool): flag to convert to ieee
-        guess (float): guess for the solver
+        vecs (3xN array-like): array of vectors to construct surface
+        values (N array-like): array of values to plot on surface
         ax (Axis): matplotlib axis object
         cbar_label (str): colorbar label for colorbar
         normal (3x1 array-like): normal vector for stereographic projection
             if not specified, uses average
+        label_miller (bool): whether to label miller indices of crystallographic
+            directions
+        padx (float): padding for x-axis, if colorbar needs to be moved
+        cbar_kwargs (dict): keyword args for colorbar
+        label_extrema (bool): whether to label maxima/minima
         **kwargs (kwargs): kwargs for ax.tricontourf
     """
     ax, fig, plt = get_ax_fig_plt(ax=ax)
@@ -1253,19 +1272,59 @@ def plot_surface(vecs, values, ax=None, cbar_label='',
     ctf = ax.tricontourf(x, y, tri.triangles, values, **kwargs)
     cbar = plt.colorbar(ctf)
     cbar.set_label(cbar_label)
-
+    center = np.array(np.average(x), np.average(y))
     # Label low-index planes
-    mis = list(itertools.product([-1, 0, 1], repeat=3))
-    mis.remove((0, 0, 0))
-    dists = np.linalg.norm(np.diff(vecs[tri.edges], axis=1), axis=2)
-    atol = np.percentile(dists, 90) # rough estimate of neighbor dist
-    for mi in mis:
-        miv = np.array(mi) / np.linalg.norm(mi)
-        if in_coord_list(vecs, miv, atol=atol):
-            mproj = get_stereographic_projection([miv], normal)[0]
-            ax.text(mproj[0], mproj[1], str(mi))
+    # May want to just make this an input param in the future
+    if label_miller:
+        mis = list(itertools.product([-1, 0, 1], repeat=3))
+        mis.remove((0, 0, 0))
+        dists = np.linalg.norm(np.diff(vecs[tri.edges], axis=1), axis=2)
+        atol = np.percentile(dists, 90) # rough estimate of neighbor dist
+        for mi in mis:
+            miv = np.array(mi) / np.linalg.norm(mi)
+            if in_coord_list(vecs, miv, atol=atol):
+                mproj = get_stereographic_projection([miv], normal)[0]
+                mtext = r"$\langle{}\rangle$".format(''.join(str(m) for m in mi))
+                avec = get_uvec(mproj - center) * 0.02
+                halign = 'left' if avec[0] > 0 else 'right'
+                #valign = 'top' if avec[1] > 0 else 'bottom'
+                ax.annotate(mtext, xy=mproj, xytext=avec+mproj,
+                            horizontalalignment=halign,
+                            #verticalalignment=valign,
+                            #arrowprops={"arrowstyle":'-'}
+                            )
     if off_axes:
         ax.axis('off')
+    if label_extrema:
+        max_idx, min_idx = np.argmax(values), np.argmin(values)
+        exvecs = [vecs[min_idx], vecs[max_idx]]
+        exprojs = get_stereographic_projection(exvecs, normal)
+        l = 0.02 # square side length
+        ax.add_patch(patches.Rectangle(exprojs[0] - 0.5*l, l, l, 
+                                       #fill=False,
+                                       angle=45,
+                                       facecolor='lightgrey',
+                                       edgecolor='lightgrey'))
+        ax.add_patch(patches.Rectangle(exprojs[1] - 0.5*l, l, l,
+                                       #fill=False, 
+                                       angle=45,
+                                       facecolor='k',
+                                       edgecolor='k'))
+        cbar.ax.plot([0, 1], [_scale_to_colorbar(cbar, values[min_idx])]*2,
+                     color='lightgrey', linestyle='-', zorder=1)
+        cbar.ax.plot([0, 1], [_scale_to_colorbar(cbar, values[max_idx])]*2, 
+                     color='k', linestyle='-', zorder=1)
+        # blargh
+
     xmin, xmax = ax.get_xlim()
-    ax.set_xlim(xmin, xmax + padx * (xmax-xmin))
+    ax.set_xlim(xmin - padx * (xmax-xmin), xmax + padx * (xmax-xmin))
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(ymin - pady * (ymax-ymin), ymax + pady * (ymax-ymin))
+
     return ax
+
+def _scale_to_colorbar(cbar, value):
+    ticks = cbar.ax.get_yticks()[0:2]
+    values = [float(v.get_text()) for v in cbar.ax.get_yticklabels()[0:2]]
+    p = np.poly1d(np.polyfit(values, ticks, 1))
+    return p(value)

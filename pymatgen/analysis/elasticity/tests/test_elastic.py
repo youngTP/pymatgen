@@ -339,6 +339,7 @@ class ElasticTensorExpansionTest(PymatgenTest):
         self.assertAlmostEqual(ys_ez, 6.5, places=1)
 
     def test_generate_yield_surface(self):
+        """
         bz, ys = self.exp_cu.generate_yield_surface(self.cu)
         max_ys = np.max(ys)
         max_dir = bz[np.argmax(ys)]
@@ -346,9 +347,14 @@ class ElasticTensorExpansionTest(PymatgenTest):
         self.assertArrayAlmostEqual([0.57735027,  0.57735027,  0.57735027], max_dir) 
 
         #bs, ys = self.exp_cu.generate_yield_surface(self.cu, guess=-5, pad_guess=-1)
+        """
 
         bs4, ys4 = self.exp_cu_4.generate_yield_surface(self.cu, ieee=False,
-                                                        guess=5, resolution=5)
+                                                        guess=5, resolution=5, validate=True)
+
+    def test_generate_yield_surface_multi(self):
+        bs4, ys4 = self.exp_cu_4.generate_yield_surface(self.cu, ieee=False, multi=16,
+                                                        window=[0, -30], resolution=20)
 
     def test_get_brittleness(self):
         # This is the yield stress
@@ -500,8 +506,14 @@ class PlotSurfaceTest(PymatgenTest):
         pass
 
     def test_plot_surface(self):
+        from matplotlib import pyplot as plt
         plot_surface(self.mesh, [1]*len(self.mesh))
-        plot_surface(self.mesh, [1] * len(self.mesh), normal=[1, 0, 0])
+        plot_surface(self.mesh, [1] * len(self.mesh), normal=[0, 0, 1], padx=0.1,
+                     off_axes=False)
+        data = loadfn("test_ys_data.json")
+        plot_surface(*data, normal=[0, 0, 1], padx=0.1, levels=np.linspace(0, 12, 41),
+                     off_axes=True, label_extrema=True)
+        plt.savefig('out.png')
 
 if __name__ == '__main__':
     unittest.main()
