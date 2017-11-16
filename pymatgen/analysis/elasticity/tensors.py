@@ -11,6 +11,7 @@ import itertools
 import warnings
 import collections
 import string
+import logging
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.core.operations import SymmOp
 from pymatgen.core.lattice import Lattice
@@ -36,6 +37,7 @@ reverse_voigt_map = np.array([[0, 5, 4],
                               [5, 1, 3],
                               [4, 3, 2]])
 
+logger = logging.getLogger(__name__)
 
 class Tensor(np.ndarray):
     """
@@ -391,8 +393,7 @@ class Tensor(np.ndarray):
 
     @classmethod
     def from_values_indices(cls, values, indices, populate=False,
-                            structure=None, voigt_rank=None, 
-                            vsym=True, verbose=False):
+                            structure=None, voigt_rank=None, vsym=True):
         """
         Creates a tensor from values and indices, with options
         for populating the remainder of the tensor.
@@ -410,7 +411,6 @@ class Tensor(np.ndarray):
                 Tensor.from_values_indices((0, 0), 100)
             vsym (bool): whether to voigt symmetrize during the
                 optimization procedure
-            verbose (bool): whether to populate verbosely
         """
         # auto-detect voigt notation
         # TODO: refactor rank inheritance to make this easier
@@ -428,7 +428,7 @@ class Tensor(np.ndarray):
             obj = cls(base)
         if populate:
             assert structure, "Populate option must include structure input"
-            obj = obj.populate(structure, vsym=vsym, verbose=verbose)
+            obj = obj.populate(structure, vsym=vsym)
         elif structure:
             obj = obj.fit_to_structure(structure)
         return obj
@@ -449,7 +449,7 @@ class Tensor(np.ndarray):
             result = np.tensordot(result, t, ax)
         return result
 
-    def populate(self, structure, prec=1e-5, maxiter=200, verbose=False,
+    def populate(self, structure, prec=1e-5, maxiter=200,
                  precond=True, vsym=True):
         """
         Takes a partially populated tensor, and populates the non-zero
@@ -465,7 +465,6 @@ class Tensor(np.ndarray):
             structure (structure object)
             prec (float): precision for determining a non-zero value
             maxiter (int): maximum iterations for populating the tensor
-            verbose (bool): whether to populate verbosely
             precond (bool): whether to precondition by cycling through
                 all symmops and storing new nonzero values, default True
             vsym (bool): whether to enforce voigt symmetry, defaults
@@ -485,15 +484,13 @@ class Tensor(np.ndarray):
                 avg_mask = gmask*nmask
                 old[avg_mask] = (old[avg_mask] + new[avg_mask]) / 2.
                 old[new_mask] = new[new_mask]
-            if verbose:
-                print("Preconditioning for {} symmops".format(len(sops)))
+            logger.info("Preconditioning for {} symmops".format(len(sops)))
             for sop in sops:
                 rot = guess.transform(sop)
                 # Store non-zero entries of new that weren't previously
                 # in the guess in the guess
                 merge(guess, rot)
-            if verbose:
-                print("Preconditioning for voigt symmetry".format(len(sops)))
+            logger.info("Preconditioning for voigt symmetry".format(len(sops)))
             if vsym:
                 v = guess.voigt
                 perms = list(itertools.permutations(range(len(v.shape))))
@@ -517,8 +514,7 @@ class Tensor(np.ndarray):
                 break
             test_new[mask] = self[mask]
             test_old = test_new
-            if verbose:
-                print("Iteration {}: {}".format(i, np.max(diff)))
+            logger.info("Iteration {}: {}".format(i, np.max(diff)))
         if not converged:
             max_diff = np.max(np.abs(self - test_new))
             warnings.warn("Warning, populated tensor is not converged "
