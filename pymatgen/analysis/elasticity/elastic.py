@@ -1025,7 +1025,7 @@ def find_eq_stress(strains, stresses, tol=1e-10):
             raise ValueError("Multiple stresses found for equilibrium strain"
                              " state, please specify equilibrium stress or  "
                              " remove extraneous stresses.")
-        eq_stress = eq_stress[0]
+        eq_stress = Stress(eq_stress[0])
     else:
         warnings.warn("No eq state found, returning zero voigt stress")
         eq_stress = Stress(np.zeros((3, 3)))
@@ -1300,19 +1300,19 @@ def plot_surface(vecs, values, ax=None, cbar_label='', normal=None,
         exvecs = [vecs[min_idx], vecs[max_idx]]
         exprojs = get_stereographic_projection(exvecs, normal)
         l = 0.02 # square side length
-        ax.add_patch(patches.Rectangle(exprojs[0] - 0.5*l, l, l, 
+        ax.add_patch(patches.Rectangle(exprojs[0] - 0.5*l, l, l,
                                        #fill=False,
                                        angle=45,
                                        facecolor='lightgrey',
                                        edgecolor='lightgrey'))
         ax.add_patch(patches.Rectangle(exprojs[1] - 0.5*l, l, l,
-                                       #fill=False, 
+                                       #fill=False,
                                        angle=45,
                                        facecolor='k',
                                        edgecolor='k'))
         cbar.ax.plot([0, 1], [_scale_to_colorbar(cbar, values[min_idx])]*2,
                      color='lightgrey', linestyle='-', zorder=1)
-        cbar.ax.plot([0, 1], [_scale_to_colorbar(cbar, values[max_idx])]*2, 
+        cbar.ax.plot([0, 1], [_scale_to_colorbar(cbar, values[max_idx])]*2,
                      color='k', linestyle='-', zorder=1)
         # blargh
 
