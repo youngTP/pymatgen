@@ -19,7 +19,6 @@ except ImportError:
 
 test_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'test_files')
 
-@unittest.skipIf(PourbaixAnalyzer is None, "ImportError while importing PourbaixAnalyzer")
 class TestPourbaixPlotter(unittest.TestCase):
 
     def setUp(self):
@@ -33,7 +32,14 @@ class TestPourbaixPlotter(unittest.TestCase):
         self.plotter = PourbaixPlotter(self.pd)
 
     def test_plot_pourbaix(self):
-        plt = self.plotter.get_pourbaix_plot(limits=[[-2, 14], [-3, 3]])
+        # Default limits
+        plt = self.plotter.get_pourbaix_plot()
+        # Non-standard limits
+        plt = self.plotter.get_pourbaix_plot(limits=[[-5, 4], [-2, 2]])
+        
+        # Try 3-D plot
+        plot_3d = self.plotter._get_plot()
+        plot_3d_unstable = self.plotter._get_plot(label_unstable=True)
 
     def test_get_entry_stability(self):
         entry = self.pd.all_entries[0]
