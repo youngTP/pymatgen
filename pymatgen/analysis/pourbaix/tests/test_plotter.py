@@ -10,12 +10,8 @@ import os
 from pymatgen.analysis.pourbaix.maker import PourbaixDiagram
 from pymatgen.analysis.pourbaix.entry import PourbaixEntryIO, PourbaixEntry
 from pymatgen.analysis.pourbaix.plotter import PourbaixPlotter
+from pymatgen.analysis.pourbaix.analyzer import PourbaixAnalyzer
 from monty.serialization import loadfn
-
-try:
-    from pymatgen.analysis.pourbaix.analyzer import PourbaixAnalyzer
-except ImportError:
-    PourbaixAnalyzer = None
 
 test_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'test_files')
 
