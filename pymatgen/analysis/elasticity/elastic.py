@@ -13,7 +13,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list
 from pymatgen.util.plotting import get_ax_fig_plt
 from pymatgen.core.units import Unit
-from scipy.misc import factorial
+from scipy.special import factorial
 from scipy.integrate import quad
 from scipy.optimize import root
 import matplotlib.tri as mtri

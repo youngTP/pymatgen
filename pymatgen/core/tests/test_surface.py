@@ -4,13 +4,14 @@
 import unittest
 import os
 import random
+import json
 
 import numpy as np
 
 from pymatgen.core.structure import Structure
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.surface import Slab, SlabGenerator, generate_all_slabs, \
-    get_symmetrically_distinct_miller_indices
+    get_symmetrically_distinct_miller_indices, ReconstructionGenerator
 from pymatgen.symmetry.groups import SpaceGroup
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.testing import PymatgenTest
@@ -174,8 +175,47 @@ class SlabTest(PymatgenTest):
             self.assertEqual(assymetric_count, 0)
             self.assertEqual(symmetric_count, len(slabs))
 
+    def test_get_symmetric_sites(self):
+
+        # Check to see if we get an equivalent site on one
+        # surface if we add a new site to the other surface
+
+        all_Ti_slabs = generate_all_slabs(self.ti, 2, 10, 10, bonds=None,
+                                          tol=1e-3, max_broken_bonds=0,
+                                          lll_reduce=False, center_slab=False,
+                                          primitive=True, max_normal_search=2,
+                                          symmetrize=True)
+
+        for slab in all_Ti_slabs:
+            sorted_sites = sorted(slab, key=lambda site: site.frac_coords[2])
+            site = sorted_sites[-1]
+            point = site.frac_coords
+            point[2] = point[2]+0.1
+            point2 = slab.get_symmetric_site(point)
+            slab.append("O", point)
+            slab.append("O", point2)
+
+            # Check if slab is all symmetric
+            sg = SpacegroupAnalyzer(slab)
+            self.assertTrue(sg.is_laue())
+
 
 class SlabGeneratorTest(PymatgenTest):
+
+    def setUp(self):
+
+        lattice = Lattice.cubic(3.010)
+        frac_coords = [[0.00000, 0.00000, 0.00000],
+                       [0.00000, 0.50000, 0.50000],
+                       [0.50000, 0.00000, 0.50000],
+                       [0.50000, 0.50000, 0.00000],
+                       [0.50000, 0.00000, 0.00000],
+                       [0.50000, 0.50000, 0.50000],
+                       [0.00000, 0.00000, 0.50000],
+                       [0.00000, 0.50000, 0.00000]]
+        species = ['Mg', 'Mg', 'Mg', 'Mg', 'O', 'O', 'O', 'O']
+        MgO = Structure(lattice, species, frac_coords)
+        self.MgO = MgO.add_oxidation_state_by_element({"Mg": 2, "O": -6})
 
     def test_get_slab(self):
         s = self.get_structure("LiFePO4")
@@ -318,19 +358,7 @@ class SlabGeneratorTest(PymatgenTest):
         # The uneven distribution of ions on the (111) facets of Halite
         # type slabs are typical examples of Tasker 3 structures. We
         # will test this algo to generate a Tasker 2 structure instead
-        lattice = Lattice.cubic(3.010)
-        frac_coords = [[0.00000, 0.00000, 0.00000],
-                       [0.00000, 0.50000, 0.50000],
-                       [0.50000, 0.00000, 0.50000],
-                       [0.50000, 0.50000, 0.00000],
-                       [0.50000, 0.00000, 0.00000],
-                       [0.50000, 0.50000, 0.50000],
-                       [0.00000, 0.00000, 0.50000],
-                       [0.00000, 0.50000, 0.00000]]
-        species = ['Mg', 'Mg', 'Mg', 'Mg', 'O', 'O', 'O', 'O']
-        MgO = Structure(lattice, species, frac_coords)
-        MgO.add_oxidation_state_by_element({"Mg": 2, "O": -6})
-        slabgen = SlabGenerator(MgO, (1,1,1), 10, 10,
+        slabgen = SlabGenerator(self.MgO, (1,1,1), 10, 10,
                                 max_normal_search=1)
         # We generate the Tasker 3 structure first
         slab = slabgen.get_slabs()[0]
@@ -345,6 +373,102 @@ class SlabGeneratorTest(PymatgenTest):
             self.assertTrue(slab.is_symmetric())
             self.assertFalse(slab.is_polar())
 
+    def nonstoichiometric_symmetrized_slab(self):
+        # For the (111) halite slab, sometimes a nonstoichiometric
+        # system is preferred over the stoichiometric Tasker 2.
+        slabgen = SlabGenerator(self.MgO, (1,1,1), 10, 10,
+                                max_normal_search=1)
+        slabs = slabgen.get_slabs(symmetrize=True)
+
+        # We should end up with two terminations, one with
+        # an Mg rich surface and another O rich surface
+        self.assertEqual(len(slabs), 2)
+        for slab in slabs:
+            self.assertTrue(slab.is_symmetric())
+
+    def test_move_to_other_side(self):
+
+        # Tests to see if sites are added to opposite side
+        s = self.get_structure("LiFePO4")
+        slabgen = SlabGenerator(s, (0,0,1), 10, 10, center_slab=True)
+        slab = slabgen.get_slab()
+        surface_sites = slab.get_surface_sites()
+
+        # check if top sites are moved to the bottom
+        top_index = [ss[1] for ss in surface_sites["top"]]
+        slab = slabgen.move_to_other_side(slab, top_index)
+        all_bottom = [slab[i].frac_coords[2] < slab.center_of_mass[2]
+                      for i in top_index]
+        self.assertTrue(all(all_bottom))
+
+        # check if bottom sites are moved to the top
+        bottom_index = [ss[1] for ss in surface_sites["bottom"]]
+        slab = slabgen.move_to_other_side(slab, bottom_index)
+        all_top = [slab[i].frac_coords[2] > slab.center_of_mass[2]
+                      for i in bottom_index]
+        self.assertTrue(all(all_top))
+
+
+class ReconstructionGeneratorTests(PymatgenTest):
+
+    def setUp(self):
+
+        l = Lattice.cubic(3.51)
+        species = ["Ni"]
+        coords = [[0,0,0]]
+        self.Ni = Structure.from_spacegroup("Fm-3m", l, species, coords)
+        self.Si = Structure.from_spacegroup("Fd-3m", Lattice.cubic(5.430500),
+                                            ["Si"], [(0, 0, 0.5)])
+
+    def test_build_slab(self):
+
+        # First lets test a reconstruction where we only remove atoms
+        recon = ReconstructionGenerator(self.Ni, 10, 10,
+                                        "fcc_110_missing_row_1x2")
+        slab = recon.get_unreconstructed_slab()
+        recon_slab = recon.build_slab()
+        self.assertTrue(recon_slab.reconstruction)
+        self.assertEqual(len(slab), len(recon_slab)+2)
+        self.assertTrue(recon_slab.is_symmetric())
+
+        # Test a reconstruction where we simply add atoms
+        recon = ReconstructionGenerator(self.Ni, 10, 10,
+                                        "fcc_111_adatom_t_1x1")
+        slab = recon.get_unreconstructed_slab()
+        recon_slab = recon.build_slab()
+        self.assertEqual(len(slab), len(recon_slab)-2)
+        self.assertTrue(recon_slab.is_symmetric())
+
+        # If a slab references another slab,
+        # make sure it is properly generated
+        recon = ReconstructionGenerator(self.Ni, 10, 10,
+                                        "fcc_111_adatom_ft_1x1")
+        slab = recon.build_slab()
+        self.assertTrue(slab.is_symmetric)
+
+        # Test a reconstruction where it works on a specific
+        # termination (Fd-3m (111))
+        recon = ReconstructionGenerator(self.Si, 10, 10,
+                                        "diamond_111_1x2")
+        slab = recon.get_unreconstructed_slab()
+        recon_slab = recon.build_slab()
+        self.assertEqual(len(slab), len(recon_slab)-8)
+        self.assertTrue(recon_slab.is_symmetric())
+
+        # Test a reconstruction where terminations give
+        # different reconstructions with a non-elemental system
+
+    def test_get_d(self):
+
+        # Ensure that regardles of the size of the vacuum or slab
+        # layer, the spacing between atomic layers should be the same
+
+        recon = ReconstructionGenerator(self.Si, 10, 10,
+                                        "diamond_100_2x1")
+        recon2 = ReconstructionGenerator(self.Si, 20, 10,
+                                         "diamond_100_2x1")
+        self.assertAlmostEqual(recon.get_d(), recon2.get_d())
+
 
 class MillerIndexFinderTests(PymatgenTest):
 
@@ -352,7 +476,9 @@ class MillerIndexFinderTests(PymatgenTest):
         self.cscl = Structure.from_spacegroup(
             "Pm-3m", Lattice.cubic(4.2), ["Cs", "Cl"],
             [[0, 0, 0], [0.5, 0.5, 0.5]])
-
+        self.Fe = Structure.from_spacegroup(\
+            "Im-3m", Lattice.cubic(2.82), ["Fe"],
+            [[0, 0, 0]])
         self.lifepo4 = self.get_structure("LiFePO4")
         self.tei = Structure.from_file(get_path("icsd_TeI.cif"),
                                        primitive=False)
@@ -390,9 +516,15 @@ class MillerIndexFinderTests(PymatgenTest):
     def test_generate_all_slabs(self):
 
         slabs = generate_all_slabs(self.cscl, 1, 10, 10)
-
         # Only three possible slabs, one each in (100), (110) and (111).
         self.assertEqual(len(slabs), 3)
+
+        # make sure it generates reconstructions
+        slabs = generate_all_slabs(self.Fe, 1, 10, 10,
+                                   include_reconstructions = True)
+
+        # Four possible slabs, (100), (110), (111) and the zigzag (100).
+        self.assertEqual(len(slabs), 4)
 
         slabs = generate_all_slabs(self.cscl, 1, 10, 10,
                                    bonds={("Cs", "Cl"): 4})
@@ -403,10 +535,6 @@ class MillerIndexFinderTests(PymatgenTest):
                                    bonds={("Cs", "Cl"): 4},
                                    max_broken_bonds=100)
         self.assertEqual(len(slabs), 3)
-
-        slabs1 = generate_all_slabs(self.lifepo4, 1, 10, 10, tol=0.1,
-                                    bonds={("P", "O"): 3})
-        self.assertEqual(len(slabs1), 4)
 
         slabs2 = generate_all_slabs(self.lifepo4, 1, 10, 10,
                                     bonds={("P", "O"): 3, ("Fe", "O"): 3})
@@ -420,6 +548,36 @@ class MillerIndexFinderTests(PymatgenTest):
         mill = (0, 0, 1)
         for s in slabs3:
             self.assertEqual(s.miller_index, mill)
+
+        slabs1 = generate_all_slabs(self.lifepo4, 1, 10, 10, tol=0.1,
+                                    bonds={("P", "O"): 3})
+        self.assertEqual(len(slabs1), 4)
+
+        # Now we test this out for repair_broken_bonds()
+        slabs1_repair = generate_all_slabs(self.lifepo4, 1, 10, 10, tol=0.1,
+                                    bonds={("P", "O"): 3}, repair=True)
+        self.assertGreater(len(slabs1_repair), len(slabs1))
+
+        # Lets see if there are no broken PO4 polyhedrons
+        miller_list = get_symmetrically_distinct_miller_indices(self.lifepo4, 1)
+        all_miller_list = []
+        for slab in slabs1_repair:
+            hkl = tuple(slab.miller_index)
+            if hkl not in all_miller_list:
+                all_miller_list.append(hkl)
+            broken = []
+            for site in slab:
+                if site.species_string == "P":
+                    neighbors = slab.get_neighbors(site, 3)
+                    cn = 0
+                    for nn in neighbors:
+                        cn += 1 if nn[0].species_string == "O" else 0
+                    broken.append(cn != 4)
+            self.assertFalse(any(broken))
+
+        # check if we were able to produce at least one
+        # termination for each distinct Miller _index
+        self.assertEqual(len(miller_list), len(all_miller_list))
 
 if __name__ == "__main__":
     unittest.main()
