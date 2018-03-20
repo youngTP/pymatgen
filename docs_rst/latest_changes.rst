@@ -1,9 +1,7 @@
 Change log
 ==========
 
-v2018.3.2
----------
-* Various algorithms for nearest neighbor analysis (Hillary Pan)
-* Cleanup of local_env modules (Nils)
-* Enhancements to surface packages (Richard)
-* Misc bud fixes
+v2018.3.14
+----------
+* ReactionDiagram for calculating possible reactions between two compositions.
+* Misc bug fixes for EnumlibAdaptor and MagOrderingTransformation

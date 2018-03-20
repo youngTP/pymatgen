@@ -1,6 +1,17 @@
 Change log
 ==========
 
+v2018.3.14
+----------
+* ReactionDiagram for calculating possible reactions between two compositions.
+* Misc bug fixes for EnumlibAdaptor and MagOrderingTransformation
+
+v2018.3.13
+----------
+* Support for VESTA lattice vector definitions. 
+* GaussianOutput read now bond_orders of a NBO calculations (@gVallverdu)
+* Bug fixes to phonons, abinit support.
+
 v2018.3.2
 ---------
 * Various algorithms for nearest neighbor analysis (Hillary Pan)
