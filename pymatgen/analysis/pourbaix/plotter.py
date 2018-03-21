@@ -204,7 +204,7 @@ class PourbaixPlotter(object):
             plt.tight_layout(pad=1.09)
 
     def plot_entry_stability(self, entry, resolution=100, e_hull_max=1,
-                             **kwargs):
+                             cmap='RdYlBu_r', **kwargs):
         # plot the Pourbaix diagram
         plt = self.get_pourbaix_plot(**kwargs)
         ax = plt.gca()
@@ -230,10 +230,10 @@ class PourbaixPlotter(object):
         stability = np.array(stability).reshape(phs.shape)
 
         # Plot stability map
-        plt.pcolor(phs, vs, stability, cmap='RdYlBu_r',
+        plt.pcolor(phs, vs, stability, cmap=cmap,
                    vmin=0, vmax=e_hull_max)
         cbar = plt.colorbar()
-        cbar.set_label("Stability of {} (eV)".format(self.print_name(entry)))
+        cbar.set_label("Stability of {} (eV/atom)".format(self.print_name(entry)))
 
         # Set ticklabels
         ticklabels = [t.get_text() for t in cbar.ax.get_yticklabels()]

@@ -83,8 +83,8 @@ class PourbaixAnalyzer(object):
                 analysis
 
         Returns:
-            Returns a dict of the form {entry: [boundary_points]}. 
-            The list of boundary points are the sides of the N-1 
+            Returns a dict of the form {entry: [boundary_points]}.
+            The list of boundary points are the sides of the N-1
             dim polytope bounding the allowable ph-V range of each entry.
         """
         tol = PourbaixAnalyzer.numerical_tol
@@ -98,8 +98,6 @@ class PourbaixAnalyzer(object):
             all_chempots.append([chempots[el] for el in self._keys])
 
         # Get hyperplanes corresponding to G as function of pH and V
-        halfspaces = []
-        qhull_data = np.array(self._pd._qhull_data)
         stable_entries = self._pd.stable_entries
         stable_indices = [self._pd.qhull_entries.index(e)
                           for e in stable_entries]
@@ -123,7 +121,7 @@ class PourbaixAnalyzer(object):
 
         # organize the boundary points by entry
         pourbaix_domains = {entry: [] for entry in stable_entries}
-        for intersection, facet in zip(hs_int.intersections, 
+        for intersection, facet in zip(hs_int.intersections,
                                        hs_int.dual_facets):
             for v in facet:
                 if v < len(stable_entries):
@@ -148,7 +146,7 @@ class PourbaixAnalyzer(object):
             points = points_centered + center
 
             # Create simplices corresponding to pourbaix boundary
-            simplices = [Simplex(points[indices]) 
+            simplices = [Simplex(points[indices])
                          for indices in ConvexHull(points).simplices]
             pourbaix_domains[entry] = simplices
             pourbaix_domain_vertices[entry] = points
@@ -201,10 +199,11 @@ class PourbaixAnalyzer(object):
         """
         all_facets = []
         for facet in self._pd.facets:
-            if self._in_facet(facet,entry):
-               all_facets.append(facet)
+            if self._in_facet(facet, entry):
+                all_facets.append(facet)
+        #if not all_facets:
+        #    raise RuntimeError("No facet found for {}".format(entry.name))
         return all_facets
-        raise RuntimeError("No facet found for comp = {}".format(entry.name))
 
 
     def _get_facet_entries(self, facet):
@@ -227,11 +226,11 @@ class PourbaixAnalyzer(object):
 
     def get_all_decomp_and_e_above_hull(self, single_entry):
         """
-        Computes the decomposition entries, species and hull energies 
-        for all the multi-entries which have the "material" as the only solid.  
-        
+        Computes the decomposition entries, species and hull energies
+        for all the multi-entries which have the "material" as the only solid.
+
         Args:
-            single_entry: single entry for which to find all of the
+            single_entry ([PourbaixEntry]): single entry for which to find all of the
                 decompositions
 
         Returns:
@@ -243,13 +242,13 @@ class PourbaixAnalyzer(object):
 
         # for all entries where the material is the only solid
         if not self._pd._multielement:
-           possible_entries = [e for e in self._pd.all_entries
-                               if single_entry == e]
+           possible_entries = [single_entry]
         else:
-           possible_entries = [e for e in self._pd.all_entries
-                               if e.phases.count("Solid") == 1
-                               and single_entry in e.entrylist]
-        
+           possible_entries = self._pd._generate_multielement_entries(
+               self._pd._preprocessed_entries, forced_include=[single_entry])
+           possible_entries = [e for e in possible_entries
+                               if e.phases.count("Solid") == 1]
+
         for possible_entry in possible_entries:
             # Find the decomposition details if the material
             # is in the Pourbaix Multi Entry or Pourbaix Entry
@@ -267,8 +266,20 @@ class PourbaixAnalyzer(object):
                 hull_energy = sum([entry.g0 * amt for entry, amt in decomp.items()])
                 hull_energies.append(possible_entry.g0 - hull_energy)
                 entries.append(possible_entry)
-        
+
         return decomp_entries, hull_energies, entries
+
+    def find_representative_multientries(pbx_entry):
+        """
+        Args:
+            pbx_entry (PourbaixEntry or MultiEntry):
+
+        Returns:
+            list of possible multi-entries containing
+            the pourbaix entries
+        """
+
+        pass
 
     def get_decomposition(self, entry):
         """
@@ -335,7 +346,7 @@ class PourbaixAnalyzer(object):
              V: potential vs SHE
 
         Returns:
-             gibbs free energy (eV/atom) 
+             gibbs free energy (eV/atom)
         """
         data = {}
 

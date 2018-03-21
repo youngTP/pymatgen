@@ -43,6 +43,9 @@ elements_HO = {Element('H'), Element('O')}
 #   or not.  Could be a more elegant way to
 #   treat the two distinct modes.
 
+# TODO: the solids filter breaks some of the functionality of the
+#       heatmap plotter, because the reference states for decomposition
+#       don't include oxygen/hydrogen in the OER/HER regions
 class PourbaixDiagram(object):
     """
     Class to create a Pourbaix diagram from entries
@@ -53,14 +56,14 @@ class PourbaixDiagram(object):
             equal parts of each elements
         conc_dict {str: float}: Dictionary of ion concentrations, defaults
             to 1e-6 for each element
-        filter_multielement (bool): applying this filter to a multi-
-            element pourbaix diagram makes generates it a bit more
-            efficiently by filtering the entries used to generate
-            the hull.  This breaks some of the functionality of
-            the analyzer, though, so use with caution.
+        filter_solids (bool): applying this filter to a pourbaix
+            diagram ensures all included phases are filtered by
+            stability on the compositional phase diagram.  This
+            breaks some of the functionality of the analyzer, though,
+            so use with caution.
     """
     def __init__(self, entries, comp_dict=None, conc_dict=None,
-                 filter_multielement=False):
+                 filter_solids=True):
         # Get non-OH elements
         pbx_elts = set(itertools.chain.from_iterable(
             [entry.composition.elements for entry in entries]))
@@ -93,16 +96,16 @@ class PourbaixDiagram(object):
 
         self._unprocessed_entries = entries
 
+        if filter_solids:
+            entries_HO = [ComputedEntry('H', 0), ComputedEntry('O', 0)]
+            solid_pd = PhaseDiagram(solid_entries + entries_HO)
+            solid_entries = list(set(solid_pd.stable_entries) - set(entries_HO))
+
         if len(comp_dict) > 1:
             self._multielement = True
-            if filter_multielement:
-                # Add two high-energy H/O entries that ensure the hull
-                # includes all stable solids.
-                entries_HO = [ComputedEntry('H', 10000), ComputedEntry('O', 10000)]
-                solid_pd = PhaseDiagram(solid_entries + entries_HO)
-                solid_entries = list(set(solid_pd.stable_entries) - set(entries_HO))
             self._processed_entries = self._generate_multielement_entries(
                     solid_entries + ion_entries)
+            self._preprocessed_entries = solid_entries + ion_entries
         else:
             self._multielement = False
 
@@ -135,7 +138,7 @@ class PourbaixDiagram(object):
         [data, self._qhull_entries] = list(zip(*temp))
         return data
 
-    def _generate_multielement_entries(self, entries):
+    def _generate_multielement_entries(self, entries, forced_include=None):
         """
         Create entries for multi-element Pourbaix construction.
 
@@ -146,14 +149,19 @@ class PourbaixDiagram(object):
         Args:
             entries ([PourbaixEntries]): list of pourbaix entries
                 to process into MultiEntries
+            forced_include ([PourbaixEntries]): list of pourbaix
+                that must be included in the multielement entries
         """
         N = len(self._elt_comp)  # No. of elements
         total_comp = Composition(self._elt_comp)
+        forced_include = forced_include or []
 
         # generate all possible combinations of compounds that have all elts
-        entry_combos = [itertools.combinations(entries, j+1) for j in range(N)]
+        entry_combos = [itertools.combinations(entries, j+1-len(forced_include))
+                        for j in range(N)]
         entry_combos = itertools.chain.from_iterable(entry_combos)
-        entry_combos = filter(lambda x: total_comp < MultiEntry(x).total_composition, 
+        entry_combos = [forced_include + list(ec) for ec in entry_combos]
+        entry_combos = filter(lambda x: total_comp < MultiEntry(x).total_composition,
                               entry_combos)
 
         # Generate and filter entries
@@ -171,7 +179,7 @@ class PourbaixDiagram(object):
         Static method for finding a multientry based on
         a list of entries and a product composition.
         Essentially checks to see if a valid aqueous
-        reaction exists between the entries and the 
+        reaction exists between the entries and the
         product composition and returns a MultiEntry
         with weights according to the coefficients if so.
 
@@ -184,11 +192,11 @@ class PourbaixDiagram(object):
         dummy_oh = [Composition("H"), Composition("O")]
         try:
             # Get balanced reaction coeffs, ensuring all < 0 or conc thresh
-            # Note that we get reduced compositions for solids and non-reduced 
+            # Note that we get reduced compositions for solids and non-reduced
             # compositions for ions because ions aren't normalized due to
             # their charge state.
             entry_comps = [e.composition if e.phase_type=='Ion'
-                           else e.composition.reduced_composition 
+                           else e.composition.reduced_composition
                            for e in entry_list]
             rxn = Reaction(entry_comps + dummy_oh, [prod_comp])
             thresh = np.array([pe.conc if pe.phase_type == "Ion"
@@ -308,7 +316,7 @@ class PourbaixDiagram(object):
         Returns the stable entries in the Pourbaix diagram.
         """
         return list(self._stable_entries)
-    
+
     @property
     def unstable_entries(self):
         """
