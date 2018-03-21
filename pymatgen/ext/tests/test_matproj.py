@@ -48,7 +48,7 @@ class MPResterTest(unittest.TestCase):
 
     def tearDown(self):
         warnings.resetwarnings()
-        
+
     def test_get_data(self):
         props = ["energy", "energy_per_atom", "formation_energy_per_atom",
                  "nsites", "unit_cell_formula", "pretty_formula", "is_hubbard",
@@ -223,6 +223,8 @@ class MPResterTest(unittest.TestCase):
         # Try binary system
         pbx_entries = self.rester.get_pourbaix_entries(["Fe", "Cr"])
         pbx = PourbaixDiagram(pbx_entries)
+        # Test Zn issue
+        pbx_entries = self.rester.get_pourbaix_entries(["Zn", "S"])
 
     def test_get_exp_entry(self):
         entry = self.rester.get_exp_entry("Fe2O3")
