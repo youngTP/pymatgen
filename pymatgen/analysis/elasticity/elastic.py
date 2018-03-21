@@ -10,7 +10,7 @@ from pymatgen.analysis.elasticity.tensors import Tensor, \
 from pymatgen.analysis.elasticity.stress import Stress
 from pymatgen.analysis.elasticity.strain import Strain
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from pymatgen.util.coord_utils import in_coord_list, find_in_coord_list
+from pymatgen.util.coord import in_coord_list
 from pymatgen.util.plotting import get_ax_fig_plt
 from pymatgen.core.units import Unit
 from scipy.special import factorial
@@ -46,7 +46,7 @@ __date__ = "March 22, 2012"
 
 class NthOrderElasticTensor(Tensor):
     """
-    An object representing an nth-order tensor expansion 
+    An object representing an nth-order tensor expansion
     of the stress-strain constitutive equations
     """
     GPa_to_eV_A3 = Unit("GPa").get_conversion_factor(Unit("eV ang^-3"))
@@ -130,7 +130,7 @@ class ElasticTensor(NthOrderElasticTensor):
     @property
     def compliance_tensor(self):
         """
-        returns the Voigt-notation compliance tensor, 
+        returns the Voigt-notation compliance tensor,
         which is the matrix inverse of the
         Voigt-notation elastic tensor
         """
@@ -186,14 +186,14 @@ class ElasticTensor(NthOrderElasticTensor):
     @property
     def y_mod(self):
         """
-        Calculates Young's modulus (in SI units) using the 
+        Calculates Young's modulus (in SI units) using the
         Voigt-Reuss-Hill averages of bulk and shear moduli
         """
         return 9.e9 * self.k_vrh * self.g_vrh / (3. * self.k_vrh + self.g_vrh)
 
     def directional_poisson_ratio(self, n, m, tol=1e-8):
         """
-        Calculates the poisson ratio for a specific direction 
+        Calculates the poisson ratio for a specific direction
         relative to a second, orthogonal direction
 
         Args:
@@ -217,7 +217,7 @@ class ElasticTensor(NthOrderElasticTensor):
 
     def trans_v(self, structure):
         """
-        Calculates transverse sound velocity (in SI units) using the 
+        Calculates transverse sound velocity (in SI units) using the
         Voigt-Reuss-Hill average bulk modulus
 
         Args:
@@ -435,9 +435,9 @@ class ElasticTensor(NthOrderElasticTensor):
     @classmethod
     def from_pseudoinverse(cls, strains, stresses):
         """
-        Class method to fit an elastic tensor from stress/strain 
-        data.  Method uses Moore-Penrose pseudoinverse to invert 
-        the s = C*e equation with elastic tensor, stress, and 
+        Class method to fit an elastic tensor from stress/strain
+        data.  Method uses Moore-Penrose pseudoinverse to invert
+        the s = C*e equation with elastic tensor, stress, and
         strain in voigt notation
 
         Args:
@@ -508,7 +508,7 @@ class ComplianceTensor(Tensor):
 class ElasticTensorExpansion(TensorCollection):
     """
     This class is a sequence of elastic tensors corresponding
-    to an elastic tensor expansion, which can be used to 
+    to an elastic tensor expansion, which can be used to
     calculate stress and energy density and inherits all
     of the list-based properties of TensorCollection
     (e. g. symmetrization, voigt conversion, etc.)
@@ -519,7 +519,7 @@ class ElasticTensorExpansion(TensorCollection):
 
         Args:
             c_list (list or tuple): sequence of Tensor inputs
-                or tensors from which the elastic tensor 
+                or tensors from which the elastic tensor
                 expansion is constructed.
         """
         c_list = [NthOrderElasticTensor(c, check_rank=4+i*2)
@@ -577,7 +577,7 @@ class ElasticTensorExpansion(TensorCollection):
         Gets the thermodynamic Gruneisen tensor (TGT) by via an
         integration of the GGT weighted by the directional heat
         capacity.
-        
+
         See refs:
             R. N. Thurston and K. Brugger, Phys. Rev. 113, A1604 (1964).
             K. Brugger Phys. Rev. 137, A1826 (1965).
@@ -589,7 +589,7 @@ class ElasticTensorExpansion(TensorCollection):
                 capacity determination, only necessary if temperature
                 is specified
             quad (dict): quadrature for integration, should be
-                dictionary with "points" and "weights" keys defaults 
+                dictionary with "points" and "weights" keys defaults
                 to quadpy.sphere.Lebedev(19) as read from file
         """
         if temperature and not structure:
@@ -607,7 +607,7 @@ class ElasticTensorExpansion(TensorCollection):
             rho_wsquareds, us = np.linalg.eigh(gk)
             us = [u / np.linalg.norm(u) for u in np.transpose(us)]
             for u in us:
-                # TODO: this should be benchmarked 
+                # TODO: this should be benchmarked
                 if temperature:
                     c = self.get_heat_capacity(temperature, structure, p, u)
                 num += c*self.get_ggt(p, u) * w
@@ -626,7 +626,7 @@ class ElasticTensorExpansion(TensorCollection):
                 capacity determination, only necessary if temperature
                 is specified
             quad (dict): quadrature for integration, should be
-                dictionary with "points" and "weights" keys defaults 
+                dictionary with "points" and "weights" keys defaults
                 to quadpy.sphere.Lebedev(19) as read from file
         """
         return np.trace(self.get_tgt(temperature, structure, quad)) / 3.
@@ -677,7 +677,7 @@ class ElasticTensorExpansion(TensorCollection):
     def thermal_expansion_coeff(self, structure, temperature, mode="debye"):
         """
         Gets thermal expansion coefficient from third-order constants.
-        
+
         Args:
             temperature (float): Temperature in kelvin, if not specified
                 will return non-cv-normalized value
@@ -781,7 +781,7 @@ class ElasticTensorExpansion(TensorCollection):
 
         Args:
             tau (3x3 array-like): stress at which to evaluate
-                the wallace tensor. 
+                the wallace tensor.
         """
         wallace = self.get_wallace_tensor(tau)
         return Tensor(0.5 * (wallace + np.transpose(wallace, [2, 3, 0, 1])))
@@ -807,7 +807,7 @@ class ElasticTensorExpansion(TensorCollection):
         """
         Finds the stability criteria zero for
         a given guess
-        
+
         Args:
             n (3x1 array-like): direction for which to find the
                 yield stress
@@ -821,7 +821,7 @@ class ElasticTensorExpansion(TensorCollection):
         """
         Finds the stability criteria zero for
         a given guess
-        
+
         Args:
             structure (Structure): structure for which to
                 find the yield surface
@@ -868,13 +868,13 @@ class ElasticTensorExpansion(TensorCollection):
 
         return np.array(bz_surf), np.array(ys)
 
-    def plot_yield_surface(self, structure, resolution=10, ieee=True, 
+    def plot_yield_surface(self, structure, resolution=10, ieee=True,
                            guess=5, ax=None, **kwargs):
         """
         Simple plotting tool for the yield surface
 
         Args:
-            structure (Structure): structure for which to 
+            structure (Structure): structure for which to
                 find the yield surface
             resolution (int): resolution for irreducible bz
             ieee (bool): flag to convert to ieee
@@ -909,11 +909,11 @@ class ElasticTensorExpansion(TensorCollection):
 #TODO: abstract this for other tensor fitting procedures
 def diff_fit(strains, stresses, eq_stress=None, order=2, tol=1e-10):
     """
-    nth order elastic constant fitting function based on 
+    nth order elastic constant fitting function based on
     central-difference derivatives with respect to distinct
     strain states.  The algorithm is summarized as follows:
 
-    1. Identify distinct strain states as sets of indices 
+    1. Identify distinct strain states as sets of indices
        for which nonzero strain values exist, typically
        [(0), (1), (2), (3), (4), (5), (0, 1) etc.]
     2. For each strain state, find and sort strains and
@@ -921,12 +921,12 @@ def diff_fit(strains, stresses, eq_stress=None, order=2, tol=1e-10):
     3. Find first, second .. nth derivatives of each stress
        with respect to scalar variable corresponding to
        the smallest perturbation in the strain.
-    4. Use the pseudoinverse of a matrix-vector expression 
+    4. Use the pseudoinverse of a matrix-vector expression
        corresponding to the parameterized stress-strain
-       relationship and multiply that matrix by the respective 
+       relationship and multiply that matrix by the respective
        calculated first or second derivatives from the
        previous step.
-    5. Place the calculated nth-order elastic 
+    5. Place the calculated nth-order elastic
        constants appropriately.
 
     Args:
@@ -998,9 +998,9 @@ def find_eq_stress(strains, stresses, tol=1e-10):
 def get_strain_state_dict(strains, stresses, eq_stress=None,
                           tol=1e-10, add_eq=True, sort=True):
     """
-    Creates a dictionary of voigt-notation stress-strain sets 
-    keyed by "strain state", i. e. a tuple corresponding to 
-    the non-zero entries in ratios to the lowest nonzero value, 
+    Creates a dictionary of voigt-notation stress-strain sets
+    keyed by "strain state", i. e. a tuple corresponding to
+    the non-zero entries in ratios to the lowest nonzero value,
     e.g. [0, 0.1, 0, 0.2, 0, 0] -> (0,1,0,2,0,0)
     This allows strains to be collected in stencils as to
     evaluate parameterized finite difference derivatives
@@ -1016,7 +1016,7 @@ def get_strain_state_dict(strains, stresses, eq_stress=None,
 
     Returns:
         OrderedDict with strain state keys and dictionaries
-        with stress-strain data corresponding to strain state 
+        with stress-strain data corresponding to strain state
     """
     # Recast stress/strains
     vstrains = np.array([Strain(s).zeroed(tol).voigt for s in strains])
@@ -1059,16 +1059,16 @@ def get_strain_state_dict(strains, stresses, eq_stress=None,
 def generate_pseudo(strain_states, order=3):
     """
     Generates the pseudoinverse for a given set of strains.
-    
+
     Args:
-        strain_states (6xN array like): a list of voigt-notation 
+        strain_states (6xN array like): a list of voigt-notation
             "strain-states", i. e. perturbed indices of the strain
             as a function of the smallest strain e. g. (0, 1, 0, 0, 1, 0)
         order (int): order of pseudoinverse to calculate
-    
+
     Returns:
-        mis: pseudo inverses for each order tensor, these can 
-            be multiplied by the central difference derivative 
+        mis: pseudo inverses for each order tensor, these can
+            be multiplied by the central difference derivative
             of the stress with respect to the strain state
         absent_syms: symbols of the tensor absent from the PI
             expression
