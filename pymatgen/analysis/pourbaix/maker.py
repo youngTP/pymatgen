@@ -7,6 +7,7 @@ from __future__ import division, unicode_literals
 import logging
 import numpy as np
 import itertools
+from copy import deepcopy
 
 from scipy.spatial import ConvexHull
 from pymatgen.analysis.pourbaix.entry import MultiEntry, ion_or_solid_comp_object
@@ -46,6 +47,7 @@ elements_HO = {Element('H'), Element('O')}
 # TODO: the solids filter breaks some of the functionality of the
 #       heatmap plotter, because the reference states for decomposition
 #       don't include oxygen/hydrogen in the OER/HER regions
+
 class PourbaixDiagram(object):
     """
     Class to create a Pourbaix diagram from entries
@@ -64,6 +66,8 @@ class PourbaixDiagram(object):
     """
     def __init__(self, entries, comp_dict=None, conc_dict=None,
                  filter_solids=True):
+
+        entries = deepcopy(entries)
         # Get non-OH elements
         pbx_elts = set(itertools.chain.from_iterable(
             [entry.composition.elements for entry in entries]))
