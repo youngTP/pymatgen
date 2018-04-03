@@ -1070,10 +1070,10 @@ class Vasprun(MSONable):
         return struct
 
     def _parse_diel(self, elem):
-        imag = [[float(l) for l in r.text.split()]
+        imag = [[_vasprun_float(l) for l in r.text.split()]
                 for r in elem.find("imag").find("array")
                 .find("set").findall("r")]
-        real = [[float(l) for l in r.text.split()]
+        real = [[_vasprun_float(l) for l in r.text.split()]
                 for r in elem.find("real")
                 .find("array").find("set").findall("r")]
         elem.clear()
@@ -2807,7 +2807,7 @@ class VolumetricData(object):
             :return: str
             """
             s = "{:.10E}".format(f)
-            if f > 0:
+            if f >= 0:
                 return "0."+s[0]+s[2:12]+'E'+"{:+03}".format(int(s[13:])+1)
             else:
                 return "-."+s[1]+s[3:13]+'E'+"{:+03}".format(int(s[14:])+1)

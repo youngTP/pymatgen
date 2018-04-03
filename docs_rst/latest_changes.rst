@@ -1,10 +1,6 @@
 Change log
 ==========
 
-v2017.12.30
------------
-* Added detailed Shannon radii information and method.
-* Magoms for lanthanides (Weike Ye)
-* Chemenv improvements (David Waroquiers)
-* Ewald summation improvements (Logan Ward)
-* Update to ABINIT support (G Matteo)
+v2018.3.22
+----------
+* Bug fixes to phase diagram module, enumlib adaptor, local env analysis.

@@ -24,6 +24,8 @@ from pymatgen.entries.computed_entries import ComputedEntry, \
     ComputedStructureEntry
 from pymatgen.entries.exp_entries import ExpEntry
 
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
 
 """
 This module provides classes to interface with the Materials Project REST
@@ -204,6 +206,34 @@ class MPRester(object):
             sub_url += "/" + prop
         return self._make_request(sub_url)
 
+    def get_materials_ids(self, chemsys_formula):
+        """
+        Get all materials ids for a formula or chemsys.
+
+        Args:
+            chemsys_formula (str): A chemical system (e.g., Li-Fe-O),
+                or formula (e.g., Fe2O3).
+
+        Returns:
+            ([str]) List of all materials ids.
+        """
+        return self._make_request("/materials/%s/mids" % chemsys_formula,
+                                  mp_decode=False)
+
+    def get_doc(self, materials_id):
+        """
+        Get the entire data document for one materials id. Use this judiciously.
+
+        Args:
+            materials_id (str): E.g., mp-1143 for Al2O3
+
+        Returns:
+            Dict of json document of all data that is displayed on a materials
+            details page.
+        """
+        return self._make_request("/materials/%s/doc" % materials_id,
+                                  mp_decode=False)
+
     def get_task_data(self, chemsys_formula_id, prop=""):
         """
         Flexible method to get any data using the Materials Project REST
@@ -282,7 +312,8 @@ class MPRester(object):
             raise MPRestError(str(ex))
 
     def get_entries(self, chemsys_formula_id_criteria, compatible_only=True,
-                    inc_structure=None, property_data=None):
+                    inc_structure=None, property_data=None,
+                    conventional_unit_cell=False):
         """
         Get a list of ComputedEntries or ComputedStructureEntries corresponding
         to a chemical system, formula, or materials_id or full criteria.
@@ -305,6 +336,8 @@ class MPRester(object):
             property_data (list): Specify additional properties to include in
                 entry.data. If None, no data. Should be a subset of
                 supported_properties.
+            conventional_unit_cell (bool): Whether to get the standard
+                conventional unit cell
 
         Returns:
             List of ComputedEntry or ComputedStructureEntry objects.
@@ -346,10 +379,16 @@ class MPRester(object):
                                   entry_id=d["task_id"])
 
             else:
-                s = d["structure"] if inc_structure == "final" else d[
+                prim = d["structure"] if inc_structure == "final" else d[
                     "initial_structure"]
+                if conventional_unit_cell:
+                    s = SpacegroupAnalyzer(prim).get_conventional_standard_structure()
+                    energy = d["energy"]*(len(s)/len(prim))
+                else:
+                    s = prim.copy()
+                    energy = d["energy"]
                 e = ComputedStructureEntry(
-                    s, d["energy"],
+                    s, energy,
                     parameters={k: d[k] for k in params},
                     data=data,
                     entry_id=d["task_id"])
@@ -432,7 +471,8 @@ class MPRester(object):
 
         return pbx_entries
 
-    def get_structure_by_material_id(self, material_id, final=True):
+    def get_structure_by_material_id(self, material_id, final=True,
+                                     conventional_unit_cell=False):
         """
         Get a Structure corresponding to a material_id.
 
@@ -441,16 +481,22 @@ class MPRester(object):
                 e.g., mp-1234).
             final (bool): Whether to get the final structure, or the initial
                 (pre-relaxation) structure. Defaults to True.
+            conventional_unit_cell (bool): Whether to get the standard
+                conventional unit cell
 
         Returns:
             Structure object.
         """
         prop = "final_structure" if final else "initial_structure"
         data = self.get_data(material_id, prop=prop)
+        if conventional_unit_cell:
+            data[0][prop] = SpacegroupAnalyzer(data[0][prop]).\
+                get_conventional_standard_structure()
         return data[0][prop]
 
     def get_entry_by_material_id(self, material_id, compatible_only=True,
-                                 inc_structure=None, property_data=None):
+                                 inc_structure=None, property_data=None,
+                                 conventional_unit_cell=False):
         """
         Get a ComputedEntry corresponding to a material_id.
 
@@ -471,13 +517,16 @@ class MPRester(object):
             property_data (list): Specify additional properties to include in
                 entry.data. If None, no data. Should be a subset of
                 supported_properties.
+            conventional_unit_cell (bool): Whether to get the standard
+                conventional unit cell
 
         Returns:
             ComputedEntry or ComputedStructureEntry object.
         """
         data = self.get_entries(material_id, compatible_only=compatible_only,
                                 inc_structure=inc_structure,
-                                property_data=property_data)
+                                property_data=property_data,
+                                conventional_unit_cell=conventional_unit_cell)
         return data[0]
 
     def get_dos_by_material_id(self, material_id):
@@ -508,7 +557,8 @@ class MPRester(object):
         return data[0]["bandstructure"]
 
     def get_entries_in_chemsys(self, elements, compatible_only=True,
-                               inc_structure=None, property_data=None):
+                               inc_structure=None, property_data=None,
+                               conventional_unit_cell=False):
         """
         Helper method to get a list of ComputedEntries in a chemical system.
         For example, elements = ["Li", "Fe", "O"] will return a list of all
@@ -533,6 +583,8 @@ class MPRester(object):
             property_data (list): Specify additional properties to include in
                 entry.data. If None, no data. Should be a subset of
                 supported_properties.
+            conventional_unit_cell (bool): Whether to get the standard
+                conventional unit cell
 
         Returns:
             List of ComputedEntries.
@@ -544,7 +596,8 @@ class MPRester(object):
                     self.get_entries(
                         "-".join(els), compatible_only=compatible_only,
                         inc_structure=inc_structure,
-                        property_data=property_data))
+                        property_data=property_data,
+                        conventional_unit_cell=conventional_unit_cell))
         return entries
 
     def get_exp_thermo_data(self, formula):
@@ -985,7 +1038,8 @@ class MPRester(object):
         return WulffShape(lattice, millers, energies)
 
     def get_interface_reactions(self, reactant1, reactant2,
-                                open_el=None, relative_mu=None):
+                                open_el=None, relative_mu=None,
+                                use_hull_energy=False):
         """
         Gets critical reactions between two reactants.
 
@@ -999,6 +1053,11 @@ class MPRester(object):
             open_el (str): Element in reservoir available to system
             relative_mu (float): Relative chemical potential of element in
                 reservoir with respect to pure substance. Must be non-positive.
+            use_hull_energy (bool): Whether to use the convex hull energy for a
+            given composition for the reaction energy calculation. If false,
+            the energy of the ground state structure will be preferred; if a
+            ground state can not be found for a composition, the convex hull
+            energy will be used with a warning message.
 
         Returns:
             list: list of dicts of form {ratio,energy,rxn} where `ratio` is the
@@ -1009,7 +1068,8 @@ class MPRester(object):
         """
         payload = {"reactants": " ".join([reactant1, reactant2]),
                    "open_el": open_el,
-                   "relative_mu": relative_mu}
+                   "relative_mu": relative_mu,
+                   "use_hull_energy": use_hull_energy}
         return self._make_request("/interface_reactions",
                                   payload=payload, method="POST")
 
